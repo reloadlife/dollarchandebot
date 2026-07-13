@@ -45,9 +45,26 @@ export default {
       if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
         return new Response("unauthorized", { status: 401 });
       }
-      const type = url.searchParams.get("type") ?? "scrape_and_cast";
-      await env.JOBS.send({ type: type as JobMessage["type"], at: Date.now(), force: true });
-      return Response.json({ ok: true, enqueued: type });
+      const type = (url.searchParams.get("type") ?? "scrape_and_cast") as JobMessage["type"];
+      const sync = url.searchParams.get("sync") === "1";
+      const force = url.searchParams.get("force") === "1";
+      if (sync) {
+        try {
+          const result = await handleJob(env, { type, at: Date.now(), force });
+          return Response.json({ ok: true, sync: true, result });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("admin sync run failed", msg);
+          return Response.json({ ok: false, error: msg }, { status: 500 });
+        }
+      }
+      try {
+        await env.JOBS.send({ type, at: Date.now(), force });
+        return Response.json({ ok: true, enqueued: type });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return Response.json({ ok: false, error: msg }, { status: 500 });
+      }
     }
 
     if (url.pathname === "/preview/list") {

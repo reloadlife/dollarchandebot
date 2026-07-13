@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "account_id": "db10503205acaca78a1df56b6a24516f",
 
   // Pure Worker = free cron + queues + D1. No Pages/static bloat.
   "workers_dev": true,
@@ -20,7 +21,7 @@
     {
       "binding": "DB",
       "database_name": "dollarchande",
-      "database_id": "local-dollarchande",
+      "database_id": "2d672ecf-b3ca-48f2-9029-8c8118fd676f",
       "migrations_dir": "migrations"
     }
   ],
@@ -29,8 +30,7 @@
   "kv_namespaces": [
     {
       "binding": "CACHE",
-      "id": "local-cache",
-      "preview_id": "local-cache-preview"
+      "id": "d165715be09246bc9dfe63db7ae27c01"
     }
   ],
 
