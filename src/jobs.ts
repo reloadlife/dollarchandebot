@@ -10,12 +10,16 @@ import { sendMessage } from "./telegram/api";
 
 /** Channel list interval (ms). Scrape is every 5m; list posts every 10m. */
 const LIST_CAST_EVERY_MS = 10 * 60 * 1000;
-/** 6h chart dump interval. */
-const CHARTS_CAST_EVERY_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Charts fire once per Tehran day at 00:00.
+ * Cron is */5 — allow minute 0–9 so a 1–5m late CF cron still hits midnight.
+ */
+const CHART_MIDNIGHT_GRACE_MIN = 10;
 
 const KV_LAST_LIST = "cast:last_list_ms";
-const KV_LAST_6H = "cast:last_6h_ms";
-const KV_LAST_DAILY_DAY = "cast:last_daily_day"; // Tehran YYYY-MM-DD
+/** Tehran day key (YYYY-MM-DD) when midnight charts last ran */
+const KV_LAST_CHART_DAY = "cast:last_chart_day";
 
 function tehranParts(d = new Date()): { hour: number; minute: number; dayKey: string } {
   const fmt = new Intl.DateTimeFormat("en-GB", {
@@ -31,9 +35,14 @@ function tehranParts(d = new Date()): { hour: number; minute: number; dayKey: st
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
   const hour = Number(get("hour"));
   const minute = Number(get("minute"));
-  // en-GB: day/month/year
+  // en-GB parts are separate types — build ISO-like day key
   const dayKey = `${get("year")}-${get("month")}-${get("day")}`;
   return { hour, minute, dayKey };
+}
+
+/** True in [00:00, 00:grace) Tehran. */
+function isTehranMidnightWindow(hour: number, minute: number): boolean {
+  return hour === 0 && minute < CHART_MIDNIGHT_GRACE_MIN;
 }
 
 async function kvGetNum(env: Env, key: string): Promise<number> {
@@ -100,10 +109,9 @@ async function fireAlerts(env: Env): Promise<void> {
 /**
  * Decide + run channel casts.
  *
- * Why not `minute % 15 === 0`?
- * Cloudflare cron can fire 1–3 minutes late. A 5-minute cron scheduled at :00
- * that actually runs at :01 would skip every list cast forever while scrape
- * still looks healthy. We use last-cast timestamps in KV instead.
+ * - Price list: every ~10m (KV last-cast — CF cron is often late).
+ * - Charts + daily OHLC: once per Tehran day at 00:00 sharp
+ *   (grace 00:00–00:09 so delayed */5 cron still fires).
  */
 export async function runCasts(env: Env, force = false, atMs = Date.now()): Promise<string> {
   const now = atMs;
@@ -117,44 +125,39 @@ export async function runCasts(env: Env, force = false, atMs = Date.now()): Prom
       await castPriceList(env);
       await kvPut(env, KV_LAST_LIST, String(now));
       extra += " +list";
-      console.log("cast list ok", { chat: env.TELEGRAM_CHANNEL_ID, tehran: `${hour}:${String(minute).padStart(2, "0")}` });
+      console.log("cast list ok", {
+        chat: env.TELEGRAM_CHANNEL_ID,
+        tehran: `${hour}:${String(minute).padStart(2, "0")}`,
+      });
     } catch (e) {
       console.error("cast list failed", e);
       throw e;
     }
   }
 
-  const last6h = await kvGetNum(env, KV_LAST_6H);
-  const due6h = force || now - last6h >= CHARTS_CAST_EVERY_MS;
-  // Prefer near top-of-window (first ~10m of each 6h block) unless forced / very overdue
-  const near6hSlot = hour % 6 === 0 && minute < 15;
-  const overdue6h = now - last6h >= CHARTS_CAST_EVERY_MS + 30 * 60 * 1000;
-  if (force || (due6h && (near6hSlot || overdue6h))) {
+  // Charts only at Tehran midnight (not every 6h)
+  const lastChartDay = (await env.CACHE.get(KV_LAST_CHART_DAY)) ?? "";
+  const dueCharts =
+    force || (lastChartDay !== dayKey && isTehranMidnightWindow(hour, minute));
+  if (dueCharts) {
     try {
       await cast6hCharts(env);
-      await kvPut(env, KV_LAST_6H, String(now));
-      extra += " +6h";
-      console.log("cast 6h ok");
+      extra += " +charts";
+      console.log("cast charts ok", { dayKey, hour, minute });
     } catch (e) {
-      console.error("cast 6h failed", e);
+      console.error("cast charts failed", e);
       throw e;
     }
-  }
-
-  const lastDailyDay = (await env.CACHE.get(KV_LAST_DAILY_DAY)) ?? "";
-  // Daily ~09:00 Tehran; window 09:00–09:20 so a delayed cron still hits
-  const dueDaily =
-    force || (lastDailyDay !== dayKey && hour === 9 && minute < 20);
-  if (dueDaily) {
     try {
       await castDaily(env);
-      await kvPut(env, KV_LAST_DAILY_DAY, dayKey);
       extra += " +daily";
       console.log("cast daily ok", { dayKey });
     } catch (e) {
       console.error("cast daily failed", e);
       throw e;
     }
+    // Mark day only after both succeed so retries re-run on failure
+    await kvPut(env, KV_LAST_CHART_DAY, dayKey);
   }
 
   return extra || " (no cast due)";
@@ -177,14 +180,16 @@ export async function handleJob(env: Env, job: JobMessage): Promise<string> {
       await castPriceList(env);
       await kvPut(env, KV_LAST_LIST, String(Date.now()));
       return "cast_15m";
-    case "cast_6h":
+    case "cast_6h": {
+      const { dayKey } = tehranParts();
       await cast6hCharts(env);
-      await kvPut(env, KV_LAST_6H, String(Date.now()));
-      return "cast_6h";
+      // Manual force does not flip midnight day marker unless daily also ran
+      return `cast_6h (${dayKey})`;
+    }
     case "cast_daily": {
       const { dayKey } = tehranParts();
       await castDaily(env);
-      await kvPut(env, KV_LAST_DAILY_DAY, dayKey);
+      await kvPut(env, KV_LAST_CHART_DAY, dayKey);
       return "cast_daily";
     }
     default:

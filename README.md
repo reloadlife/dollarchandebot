@@ -21,8 +21,8 @@ Built to be **cheap as hell** on Cloudflare free tier:
 
 **Channel schedule** (Asia/Tehran)
 - Every **~10 minutes** — price list (scrape first, then post; last-cast KV so delayed cron still posts)
-- Every **~6 hours** — charts for USD, USDT, EUR, GOLD18, EMAMI
-- Daily **~09:00** — charts + OHLC summary
+- **00:00 sharp** — charts (USD, USDT, EUR, GOLD18, EMAMI) + daily OHLC  
+  (grace 00:00–00:09 for late CF cron; once per Tehran day)
 
 **Bot**
 - Text: `USD` / `/eur` → 24h chart image + price

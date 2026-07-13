@@ -51,8 +51,8 @@
     ]
   },
 
-  // Every 5m: scrape (+ tick). Channel list ~every 10m via last-cast KV
-  // (not wall-clock minute%N — CF cron is often 1–3m late).
+  // Every 5m: scrape (+ tick). Channel list ~every 10m via last-cast KV.
+  // Charts only at Tehran 00:00 (see jobs.ts midnight window).
   "triggers": {
     "crons": ["*/5 * * * *"]
   },
