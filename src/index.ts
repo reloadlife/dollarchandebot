@@ -3,6 +3,7 @@ import { handleJob, runScrapeAndCast } from "./jobs";
 import { handleUpdate } from "./telegram/bot";
 import type { TgUpdate } from "./telegram/api";
 import { setWebhook } from "./telegram/api";
+import { setupBotMenu } from "./telegram/commands";
 import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
@@ -58,7 +59,18 @@ export default {
       }
       const hook = `${url.origin}/telegram/webhook`;
       await setWebhook(env, hook, env.TELEGRAM_WEBHOOK_SECRET);
-      return Response.json({ ok: true, webhook: hook });
+      const menu = await setupBotMenu(env);
+      return Response.json({ ok: true, webhook: hook, menu });
+    }
+
+    // Register / menu commands + bot description for all locales
+    if (url.pathname === "/admin/setup-menu" && request.method === "POST") {
+      const secret = request.headers.get("x-admin-secret");
+      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      const menu = await setupBotMenu(env);
+      return Response.json(menu);
     }
 
     // Debug calculator: GET /admin/calc?q=10.5+USDT+%2B+10%

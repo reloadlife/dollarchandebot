@@ -1,0 +1,102 @@
+/**
+ * Bot command menu (setMyCommands) + profile descriptions.
+ * Telegram shows these in the "/" menu per user language.
+ */
+
+import type { Env } from "../env";
+import { callTelegram } from "./api";
+
+export interface BotCommand {
+  command: string;
+  description: string;
+}
+
+/** Primary menu — keep short; full list lives in /help */
+export const COMMANDS_EN: BotCommand[] = [
+  { command: "start", description: "Welcome & quick start" },
+  { command: "help", description: "How to use the bot" },
+  { command: "symbols", description: "Full symbol list" },
+  { command: "exchanges", description: "USDT buy/sell by exchange" },
+  { command: "compare", description: "Compare two symbols" },
+  { command: "history", description: "7-day OHLC history" },
+  { command: "alert", description: "Set a price alert" },
+  { command: "alerts", description: "List your alerts" },
+  { command: "settings", description: "Language & default fee" },
+  { command: "calc", description: "Currency calculator" },
+];
+
+export const COMMANDS_FA: BotCommand[] = [
+  { command: "start", description: "شروع و خوش‌آمد" },
+  { command: "help", description: "راهنمای کامل" },
+  { command: "symbols", description: "لیست نمادها" },
+  { command: "exchanges", description: "قیمت تتر در صرافی‌ها" },
+  { command: "compare", description: "مقایسه دو نماد" },
+  { command: "history", description: "تاریخچه ۷ روزه" },
+  { command: "alert", description: "تنظیم هشدار قیمت" },
+  { command: "alerts", description: "لیست هشدارها" },
+  { command: "settings", description: "زبان و کارمزد" },
+  { command: "calc", description: "ماشین‌حساب ارز" },
+];
+
+const SHORT_EN = "Free-market FX, gold & USDT · charts · calc";
+const SHORT_FA = "نرخ آزاد ارز، طلا و تتر · نمودار · ماشین‌حساب";
+
+const DESC_EN = [
+  "Live Iranian free-market rates (Toman).",
+  "",
+  "• Send USD or $USDT for price + 24h chart",
+  "• Calculator: 10 USDT + 5 EUR",
+  "• Inline: @DollarChandeBot USD",
+  "• /exchanges · /alert · /compare · /help",
+  "",
+  "Channel: @AlanDollarChande",
+].join("\n");
+
+const DESC_FA = [
+  "نرخ زنده بازار آزاد (تومان).",
+  "",
+  "• بفرست USD یا $USDT → قیمت + نمودار ۲۴س",
+  "• ماشین‌حساب: 10 USDT + 5 EUR",
+  "• اینلاین: @DollarChandeBot USD",
+  "• /exchanges · /alert · /compare · /help",
+  "",
+  "کانال: @AlanDollarChande",
+].join("\n");
+
+/** language_code for setMyCommands / descriptions. Empty = default (fallback). */
+const LOCALES: Array<{ code?: string; commands: BotCommand[]; short: string; desc: string }> = [
+  { commands: COMMANDS_EN, short: SHORT_EN, desc: DESC_EN }, // default
+  { code: "en", commands: COMMANDS_EN, short: SHORT_EN, desc: DESC_EN },
+  { code: "fa", commands: COMMANDS_FA, short: SHORT_FA, desc: DESC_FA },
+  // Persian users sometimes report "fa-IR"
+  { code: "fa-IR", commands: COMMANDS_FA, short: SHORT_FA, desc: DESC_FA },
+];
+
+export async function setupBotMenu(env: Env): Promise<{ ok: true; locales: string[] }> {
+  const done: string[] = [];
+
+  for (const loc of LOCALES) {
+    const tag = loc.code ?? "default";
+    await callTelegram(env, "setMyCommands", {
+      commands: loc.commands,
+      ...(loc.code ? { language_code: loc.code } : {}),
+      scope: { type: "default" },
+    });
+    await callTelegram(env, "setMyShortDescription", {
+      short_description: loc.short,
+      ...(loc.code ? { language_code: loc.code } : {}),
+    });
+    await callTelegram(env, "setMyDescription", {
+      description: loc.desc,
+      ...(loc.code ? { language_code: loc.code } : {}),
+    });
+    done.push(tag);
+  }
+
+  // Menu button = commands list (opens "/" menu)
+  await callTelegram(env, "setChatMenuButton", {
+    menu_button: { type: "commands" },
+  });
+
+  return { ok: true, locales: done };
+}

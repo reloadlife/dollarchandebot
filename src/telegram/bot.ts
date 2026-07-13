@@ -1,11 +1,13 @@
 import type { Env } from "../env";
 import { normalizeSymbolQuery, resolveSymbol } from "../symbols";
 import {
+  answerCallbackQuery,
   answerGuestQuery,
   answerInlineQuery,
   isDeadUpdate,
   sendMessage,
   sendRichMessage,
+  type TgCallbackQuery,
   type TgMessage,
   type TgUpdate,
 } from "./api";
@@ -33,6 +35,7 @@ import {
   richHistory,
   richMulti,
   richOhlc,
+  richSettings,
   richStart,
   richSymbolPrice,
   richSymbols,
@@ -45,7 +48,6 @@ import { addAlert, countAlerts, deleteAlert, listAlerts } from "../db/alerts";
 import { getSettings, setFeePct, setLang, type Lang } from "../db/settings";
 import { rateLimit } from "../lib/ratelimit";
 import { t } from "../lib/i18n";
-import { em } from "./emoji";
 
 /** Normal-mode replies use Rich Messages; fall back to classic HTML if needed. */
 async function replyRich(
@@ -86,6 +88,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     hasMessage: Boolean(update.message),
     hasInline: Boolean(update.inline_query),
     hasGuest: Boolean(update.guest_message),
+    hasCb: Boolean(update.callback_query),
     text: update.message?.text?.slice(0, 80),
     date: update.message?.date,
   });
@@ -100,6 +103,11 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   // Guest Mode: @mention in a chat the bot isn't a member of
   if (update.guest_message) {
     await handleGuestMessage(env, update.guest_message);
+    return;
+  }
+
+  if (update.callback_query) {
+    await handleCallback(env, update.callback_query);
     return;
   }
 
@@ -138,23 +146,38 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const settings = await getSettings(env.DB, String(chatId));
 
   if (command?.cmd === "start") {
-    await replyRich(env, chatId, richStart(env), {
+    // /start fa | /start en — optional lang payload
+    const payload = command.arg.toLowerCase();
+    if (payload === "fa" || payload === "en") {
+      await setLang(env.DB, String(chatId), payload as Lang);
+      settings.lang = payload as Lang;
+    }
+    await replyRich(env, chatId, richStart(env, settings.lang), {
       ...extra,
-      reply_markup: startKeyboard(env),
+      reply_markup: startKeyboard(env, settings.lang),
     });
     return;
   }
 
   if (command?.cmd === "help") {
-    await replyRich(env, chatId, richHelp(env), {
+    await replyRich(env, chatId, richHelp(env, settings.lang), {
       ...extra,
-      reply_markup: startKeyboard(env),
+      reply_markup: startKeyboard(env, settings.lang),
     });
     return;
   }
 
-  if (command?.cmd === "symbols" || command?.cmd === "symbol") {
-    await replyRich(env, chatId, richSymbols(), extra);
+  if (command?.cmd === "symbols" || command?.cmd === "symbol" || command?.cmd === "list") {
+    await replyRich(env, chatId, richSymbols(settings.lang), extra);
+    return;
+  }
+
+  // /menu — same as start keyboard refresh
+  if (command?.cmd === "menu") {
+    await replyRich(env, chatId, richStart(env, settings.lang), {
+      ...extra,
+      reply_markup: startKeyboard(env, settings.lang),
+    });
     return;
   }
 
@@ -163,25 +186,28 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     await replyRich(
       env,
       chatId,
-      `<h2>${em("sparkle")} ${t(settings.lang, "settings")}</h2>
-<p>lang: <b>${settings.lang}</b> → <code>/lang en</code> · <code>/lang fa</code></p>
-<p>fee: <b>${settings.fee_pct}%</b> → <code>/fee 2</code></p>
-<p>alerts: <code>/alert</code> · <code>/alerts</code></p>
-<p>exchanges: <code>/exchanges</code></p>`,
-      extra,
+      richSettings(env, settings.lang, settings.fee_pct),
+      {
+        ...extra,
+        reply_markup: startKeyboard(env, settings.lang),
+      },
     );
     return;
   }
   if (command?.cmd === "lang") {
     const lang = (command.arg.toLowerCase() === "fa" ? "fa" : "en") as Lang;
     await setLang(env.DB, String(chatId), lang);
+    await replyRich(env, chatId, richStart(env, lang), {
+      ...extra,
+      reply_markup: startKeyboard(env, lang),
+    });
     await sendMessage(env, chatId, `${t(lang, "langSet")} <b>${lang}</b>`);
     return;
   }
   if (command?.cmd === "fee") {
     const n = Number(command.arg.replace("%", ""));
     if (!Number.isFinite(n)) {
-      await sendMessage(env, chatId, "Usage: <code>/fee 2</code>");
+      await sendMessage(env, chatId, t(settings.lang, "usageFee"));
       return;
     }
     await setFeePct(env.DB, String(chatId), n);
@@ -202,7 +228,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     const a = resolveSymbol(parts[0] ?? "USD");
     const b = resolveSymbol(parts[1] ?? "USDT");
     if (!a || !b) {
-      await sendMessage(env, chatId, "Usage: <code>/compare USD USDT</code>");
+      await sendMessage(env, chatId, t(settings.lang, "usageCompare"));
       return;
     }
     const [ra, rb] = await Promise.all([getLatest(env.DB, a.id), getLatest(env.DB, b.id)]);
@@ -227,7 +253,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "history" || command?.cmd === "ohlc") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
-      await sendMessage(env, chatId, "Usage: <code>/history USD</code>");
+      await sendMessage(env, chatId, t(settings.lang, "usageHistory"));
       return;
     }
     const days = await getOhlcDays(env.DB, def.id, 7);
@@ -248,7 +274,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "chart7d" || command?.cmd === "7d") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
-      await sendMessage(env, chatId, "Usage: <code>/7d USD</code>");
+      await sendMessage(env, chatId, t(settings.lang, "usage7d"));
       return;
     }
     await sendSymbolCard(env, chatId, def.id, extra, "7d");
@@ -261,21 +287,21 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       /^(\S+)\s+(above|below|move|pct|move_pct)\s+([\d.]+)%?$/i,
     );
     if (!m) {
-      await sendMessage(
-        env,
-        chatId,
-        "Usage:\n<code>/alert USD above 180000</code>\n<code>/alert USDT below 170000</code>\n<code>/alert USD move 2</code> (2%)",
-      );
+      await sendMessage(env, chatId, t(settings.lang, "usageAlert"));
       return;
     }
     const def = resolveSymbol(m[1] ?? "");
     if (!def) {
-      await sendMessage(env, chatId, `Unknown symbol <code>${escapeHtml(m[1] ?? "")}</code>`);
+      await sendMessage(
+        env,
+        chatId,
+        `${t(settings.lang, "unknownSymbol")} <code>${escapeHtml(m[1] ?? "")}</code>`,
+      );
       return;
     }
     const n = await countAlerts(env.DB, String(chatId));
     if (n >= 10) {
-      await sendMessage(env, chatId, "Max 10 alerts. /unalert ID first.");
+      await sendMessage(env, chatId, t(settings.lang, "maxAlerts"));
       return;
     }
     let direction: "above" | "below" | "move_pct" = "above";
@@ -300,20 +326,26 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     const body = rows
       .map((a) => `#${a.id} <code>${a.symbol}</code> ${a.direction} ${a.threshold}`)
       .join("\n");
-    await sendMessage(env, chatId, `🔔 <b>Alerts</b>\n${body}\n\n/unalert ID`);
+    await sendMessage(
+      env,
+      chatId,
+      `🔔 <b>${t(settings.lang, "alertsTitle")}</b>\n${body}\n\n/unalert ID`,
+    );
     return;
   }
   if (command?.cmd === "unalert" || command?.cmd === "delalert") {
     const id = Number(command.arg);
     if (!id) {
-      await sendMessage(env, chatId, "Usage: <code>/unalert 3</code>");
+      await sendMessage(env, chatId, t(settings.lang, "usageUnalert"));
       return;
     }
     const ok = await deleteAlert(env.DB, String(chatId), id);
     await sendMessage(
       env,
       chatId,
-      ok ? `${t(settings.lang, "alertDeleted")} #${id}` : "Alert not found.",
+      ok
+        ? `${t(settings.lang, "alertDeleted")} #${id}`
+        : t(settings.lang, "alertNotFound"),
     );
     return;
   }
@@ -346,12 +378,71 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const range: ChartRange = rangeMatch?.[2]?.toLowerCase() === "7d" ? "7d" : "24h";
   const def = resolveSymbol(symRaw);
   if (!def) {
+    // Unknown slash commands → friendly help pointer
+    if (command) {
+      await sendMessage(env, chatId, t(settings.lang, "unknown"));
+      return;
+    }
     const shown = normalizeSymbolQuery(text) || text;
-    await replyRich(env, chatId, richUnknown(shown), extra);
+    await replyRich(env, chatId, richUnknown(shown, settings.lang), extra);
     return;
   }
 
   await sendSymbolCard(env, chatId, def.id, extra, range);
+}
+
+async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
+  const data = cq.data ?? "";
+  const chatId = cq.message?.chat?.id;
+  if (!chatId) {
+    await answerCallbackQuery(env, cq.id).catch(() => undefined);
+    return;
+  }
+
+  const settings = await getSettings(env.DB, String(chatId));
+  const extra = replyParams(cq.message?.message_id);
+
+  try {
+    if (data === "noop:symbols" || data === "menu:symbols") {
+      await replyRich(env, chatId, richSymbols(settings.lang), extra);
+      await answerCallbackQuery(env, cq.id);
+      return;
+    }
+    if (data === "noop:exchanges" || data === "menu:exchanges") {
+      const rows = await listExchanges(env.DB);
+      await replyRich(env, chatId, richExchanges(env, rows), extra);
+      await answerCallbackQuery(env, cq.id);
+      return;
+    }
+    if (data === "menu:help") {
+      await replyRich(env, chatId, richHelp(env, settings.lang), {
+        ...extra,
+        reply_markup: startKeyboard(env, settings.lang),
+      });
+      await answerCallbackQuery(env, cq.id);
+      return;
+    }
+    if (data === "menu:lang_fa") {
+      await setLang(env.DB, String(chatId), "fa");
+      await replyRich(env, chatId, richStart(env, "fa"), {
+        reply_markup: startKeyboard(env, "fa"),
+      });
+      await answerCallbackQuery(env, cq.id, "فارسی");
+      return;
+    }
+    if (data === "menu:lang_en") {
+      await setLang(env.DB, String(chatId), "en");
+      await replyRich(env, chatId, richStart(env, "en"), {
+        reply_markup: startKeyboard(env, "en"),
+      });
+      await answerCallbackQuery(env, cq.id, "English");
+      return;
+    }
+    await answerCallbackQuery(env, cq.id);
+  } catch (e) {
+    console.error("callback failed", e);
+    await answerCallbackQuery(env, cq.id, "Error").catch(() => undefined);
+  }
 }
 
 async function sendSymbolCard(

@@ -12,6 +12,16 @@ export class TelegramError extends Error {
   }
 }
 
+/** Public wrapper for Bot API methods (menu setup, etc.). */
+export async function callTelegram<T>(
+  env: Env,
+  method: string,
+  body?: unknown,
+  form?: FormData,
+): Promise<T> {
+  return call(env, method, body, form);
+}
+
 async function call<T>(
   env: Env,
   method: string,
@@ -143,7 +153,7 @@ export async function setWebhook(
   return call(env, "setWebhook", {
     url,
     secret_token: secret,
-    allowed_updates: ["message", "inline_query", "guest_message"],
+    allowed_updates: ["message", "inline_query", "guest_message", "callback_query"],
     // drop backlog on (re)register so we don't replay dead updates
     drop_pending_updates: dropPending,
   });
@@ -166,6 +176,14 @@ export type TgMessage = {
   caption_entities?: Array<{ type: string; offset: number; length: number }>;
 };
 
+export type TgCallbackQuery = {
+  id: string;
+  from: { id: number; username?: string; language_code?: string };
+  message?: TgMessage;
+  data?: string;
+  chat_instance?: string;
+};
+
 export type TgUpdate = {
   update_id: number;
   message?: TgMessage;
@@ -176,7 +194,19 @@ export type TgUpdate = {
     query: string;
     from: { id: number; username?: string };
   };
+  callback_query?: TgCallbackQuery;
 };
+
+export async function answerCallbackQuery(
+  env: Env,
+  callbackQueryId: string,
+  text?: string,
+): Promise<true> {
+  return call(env, "answerCallbackQuery", {
+    callback_query_id: callbackQueryId,
+    text,
+  });
+}
 
 /** True if message.date is missing or older than maxAgeSec. */
 export function isDeadUpdate(

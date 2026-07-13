@@ -8,6 +8,7 @@ import type { SymbolDef } from "../symbols";
 import { SYMBOLS } from "../symbols";
 import type { LatestRow } from "../db/prices";
 import type { CalcResult } from "../lib/calc";
+import type { Lang } from "../db/settings";
 import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
 import { em } from "./emoji";
 
@@ -25,37 +26,106 @@ function fmtAmt(n: number): string {
   return String(Number(n.toPrecision(12)));
 }
 
-export function richStart(env: Env): string {
+export function richStart(env: Env, lang: Lang = "en"): string {
+  if (lang === "fa") {
+    return `
+<h2>👋 به Dollar Chande خوش اومدی</h2>
+<p>نرخ <b>بازار آزاد</b> به <b>تومان</b> + نمودار ۲۴ ساعته.</p>
+
+<h3>شروع سریع</h3>
+<ul>
+<li>یک نماد بفرست — <code>USD</code>، <code>$USD</code> یا <code>/USD</code></li>
+<li><b>اینلاین</b>: <code>${botAt(env)} USD</code> در هر چت</li>
+<li><b>مهمان</b>: منشن کن <code>${botAt(env)} USD</code> حتی اگر عضو چت نباشم</li>
+<li><b>ماشین‌حساب</b>: <code>10 USDT + 5 EUR</code></li>
+</ul>
+
+<h3>دستورات پرکاربرد</h3>
+<ul>
+<li><code>/help</code> — راهنما</li>
+<li><code>/symbols</code> — لیست نمادها</li>
+<li><code>/exchanges</code> — تتر صرافی‌ها</li>
+<li><code>/settings</code> — زبان و کارمزد</li>
+</ul>
+
+<p>${em("channel")} کانال: <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+`.trim();
+  }
+
   return `
 <h2>👋 Welcome to Dollar Chande</h2>
-<p>Live free-market rates in <b>Toman / IRT</b>, with a clean 24h chart.</p>
+<p>Live <b>free-market</b> rates in <b>Toman</b> + a clean 24h chart.</p>
 
 <h3>Get started</h3>
 <ul>
-<li>Send a symbol — <code>USD</code>, <code>$USD</code>, or <code>/USD</code> (all the same)</li>
-<li><b>Inline</b>: type <code>${botAt(env)} USD</code> in any chat</li>
+<li>Send a symbol — <code>USD</code>, <code>$USD</code>, or <code>/USD</code></li>
+<li><b>Inline</b>: <code>${botAt(env)} USD</code> in any chat</li>
 <li><b>Guest</b>: mention <code>${botAt(env)} USD</code> even if I’m not in the chat</li>
-<li><b>Calculator</b>: <code>10 USDT + 5 EUR</code> → total in IRT</li>
+<li><b>Calculator</b>: <code>10 USDT + 5 EUR</code> → total in Toman</li>
 </ul>
 
-<h3>Commands</h3>
+<h3>Handy commands</h3>
 <ul>
-<li><code>/help</code> — how everything works</li>
-<li><code>/symbols</code> — full symbol list</li>
+<li><code>/help</code> — full guide</li>
+<li><code>/symbols</code> — all symbols</li>
+<li><code>/exchanges</code> — USDT by exchange</li>
+<li><code>/settings</code> — language &amp; fee</li>
 </ul>
 
-<p>📣 Channel: <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+<p>${em("channel")} Channel: <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
-export function richHelp(env: Env): string {
+export function richHelp(env: Env, lang: Lang = "en"): string {
+  if (lang === "fa") {
+    return `
+<h2>ℹ️ راهنما · Dollar Chande</h2>
+<p>ارز، طلا، سکه و <b>تتر چندصرافی</b> · نمودار · ماشین‌حساب · هشدار.</p>
+
+<h3>قیمت</h3>
+<ul>
+<li><code>USD</code> / <code>$USDT</code> — کارت + نمودار ۲۴س</li>
+<li><code>USD 7d</code> یا <code>/7d USD</code> — نمودار ۷روزه</li>
+<li><code>USD USDT EUR</code> — چند نماد یک‌جا</li>
+<li><code>/compare USD USDT</code> — اختلاف</li>
+<li><code>/exchanges</code> — خرید/فروش تتر در صرافی‌ها</li>
+<li><code>/history USD</code> · <code>/ohlc USD</code></li>
+</ul>
+
+<h3>ماشین‌حساب</h3>
+<ul>
+<li><code>10.5 USDT + 10%</code></li>
+<li><code>(10 USDT + 5 EUR) * 1.1</code></li>
+<li><code>50000000 in USDT</code> — تومان → دارایی</li>
+<li><code>/fee 2</code> — کارمزد پیش‌فرض</li>
+</ul>
+
+<h3>هشدار و تنظیمات</h3>
+<ul>
+<li><code>/alert USD above 180000</code></li>
+<li><code>/alert USDT move 2</code></li>
+<li><code>/alerts</code> · <code>/unalert 3</code></li>
+<li><code>/lang fa</code> · <code>/lang en</code> · <code>/settings</code></li>
+</ul>
+
+<h3>بیشتر</h3>
+<ul>
+<li>اینلاین: <code>${botAt(env)} USD</code></li>
+<li>مهمان: <code>${botAt(env)} 10 USDT + 5 EUR</code></li>
+<li>منوی / پایین چت را هم ببین</li>
+</ul>
+
+<p>⏱ به‌روزرسانی ~۵ دقیقه · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+`.trim();
+  }
+
   return `
 <h2>ℹ️ Help · Dollar Chande</h2>
-<p>Free-market FX, gold, coins &amp; multi-exchange <b>USDT</b> · charts · calc.</p>
+<p>Free-market FX, gold, coins &amp; multi-exchange <b>USDT</b> · charts · calc · alerts.</p>
 
 <h3>Prices</h3>
 <ul>
-<li><code>USD</code> / <code>$USD</code> — card + 24h chart</li>
+<li><code>USD</code> / <code>$USDT</code> — card + 24h chart</li>
 <li><code>USD 7d</code> or <code>/7d USD</code> — 7-day chart</li>
 <li><code>USD USDT EUR</code> — multi snapshot</li>
 <li><code>/compare USD USDT</code> — spread</li>
@@ -67,8 +137,8 @@ export function richHelp(env: Env): string {
 <ul>
 <li><code>10.5 USDT + 10%</code></li>
 <li><code>(10 USDT + 5 EUR) * 1.1</code></li>
-<li><code>50000000 in USDT</code> — IRT → asset</li>
-<li><code>fee 2%</code> or <code>/fee 2</code></li>
+<li><code>50000000 in USDT</code> — Toman → asset</li>
+<li><code>/fee 2</code> — default fee for calc</li>
 </ul>
 
 <h3>Alerts &amp; settings</h3>
@@ -82,25 +152,35 @@ export function richHelp(env: Env): string {
 <h3>Also</h3>
 <ul>
 <li>Inline: <code>${botAt(env)} USD</code></li>
-<li>Guest: mention <code>${botAt(env)} 10 USDT + 5 EUR</code></li>
+<li>Guest: <code>${botAt(env)} 10 USDT + 5 EUR</code></li>
+<li>Open the <b>/</b> menu for commands</li>
 </ul>
 
 <p>⏱ ~5 min refresh · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
-export function richSymbols(): string {
+export function richSymbols(lang: Lang = "en"): string {
   const order: Array<"fx" | "crypto" | "gold" | "coin"> = ["fx", "crypto", "gold", "coin"];
-  const labels: Record<string, string> = {
+  const labelsEn: Record<string, string> = {
     fx: "💱 Currencies",
     crypto: "💰 Crypto",
     gold: "🥇 Gold",
     coin: "🪙 Coins",
   };
+  const labelsFa: Record<string, string> = {
+    fx: "💱 ارزها",
+    crypto: "💰 کریپتو",
+    gold: "🥇 طلا",
+    coin: "🪙 سکه",
+  };
+  const labels = lang === "fa" ? labelsFa : labelsEn;
 
   const parts: string[] = [
-    `<h2>📋 Symbol list</h2>`,
-    `<p><i>Send a code to get price + 24h chart.</i></p>`,
+    lang === "fa" ? `<h2>📋 لیست نمادها</h2>` : `<h2>📋 Symbol list</h2>`,
+    lang === "fa"
+      ? `<p><i>کد را بفرست تا قیمت + نمودار ۲۴س بیاد.</i></p>`
+      : `<p><i>Send a code for price + 24h chart.</i></p>`,
   ];
 
   for (const kind of order) {
@@ -116,11 +196,26 @@ export function richSymbols(): string {
     parts.push("</ul>");
   }
 
-  parts.push(`<p>Tip: try <code>USD</code> or <code>USDT</code> first.</p>`);
+  parts.push(
+    lang === "fa"
+      ? `<p>پیشنهاد: اول <code>USD</code> یا <code>USDT</code> را امتحان کن.</p>`
+      : `<p>Tip: try <code>USD</code> or <code>USDT</code> first.</p>`,
+  );
   return parts.join("\n");
 }
 
-export function richUnknown(token: string): string {
+export function richUnknown(token: string, lang: Lang = "en"): string {
+  if (lang === "fa") {
+    return `
+<h3>❓ نماد ناشناخته</h3>
+<p><code>${escapeHtml(token)}</code></p>
+<ul>
+<li>امتحان کن: <code>USD</code>، <code>$USDT</code> یا <code>/EUR</code></li>
+<li>یا حساب کن: <code>10 USDT + 5 EUR</code></li>
+<li>لیست کامل: <code>/symbols</code> · راهنما: <code>/help</code></li>
+</ul>
+`.trim();
+  }
   return `
 <h3>❓ Unknown symbol</h3>
 <p><code>${escapeHtml(token)}</code></p>
@@ -129,6 +224,31 @@ export function richUnknown(token: string): string {
 <li>Or calculate: <code>10 USDT + 5 EUR</code></li>
 <li>Full list: <code>/symbols</code> · help: <code>/help</code></li>
 </ul>
+`.trim();
+}
+
+export function richSettings(
+  env: Env,
+  lang: Lang,
+  feePct: number,
+): string {
+  if (lang === "fa") {
+    return `
+<h2>${em("sparkle")} تنظیمات</h2>
+<p>زبان: <b>fa</b> → <code>/lang en</code></p>
+<p>کارمزد پیش‌فرض: <b>${feePct}%</b> → <code>/fee 2</code></p>
+<p>هشدار: <code>/alert</code> · <code>/alerts</code></p>
+<p>تتر صرافی‌ها: <code>/exchanges</code></p>
+<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+`.trim();
+  }
+  return `
+<h2>${em("sparkle")} Settings</h2>
+<p>Language: <b>${lang}</b> → <code>/lang fa</code> · <code>/lang en</code></p>
+<p>Default fee: <b>${feePct}%</b> → <code>/fee 2</code></p>
+<p>Alerts: <code>/alert</code> · <code>/alerts</code></p>
+<p>USDT exchanges: <code>/exchanges</code></p>
+<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
@@ -389,12 +509,42 @@ ${chartBlock}
 `.trim();
 }
 
-export function startKeyboard(env: Env): Record<string, unknown> {
+export function startKeyboard(env: Env, lang: Lang = "en"): Record<string, unknown> {
+  if (lang === "fa") {
+    return {
+      inline_keyboard: [
+        [
+          { text: "💲 دلار USD", switch_inline_query_current_chat: "USD" },
+          { text: "💰 تتر USDT", switch_inline_query_current_chat: "USDT" },
+        ],
+        [
+          { text: "📋 نمادها", callback_data: "menu:symbols" },
+          { text: "🏦 صرافی‌ها", callback_data: "menu:exchanges" },
+        ],
+        [
+          { text: "🇬🇧 English", callback_data: "menu:lang_en" },
+          { text: "ℹ️ راهنما", callback_data: "menu:help" },
+        ],
+        [
+          { text: "🔎 اینلاین…", switch_inline_query: "USD" },
+          { text: "📣 کانال", url: channelUrl(env) },
+        ],
+      ],
+    };
+  }
   return {
     inline_keyboard: [
       [
         { text: "💲 Try USD", switch_inline_query_current_chat: "USD" },
         { text: "💰 Try USDT", switch_inline_query_current_chat: "USDT" },
+      ],
+      [
+        { text: "📋 Symbols", callback_data: "menu:symbols" },
+        { text: "🏦 Exchanges", callback_data: "menu:exchanges" },
+      ],
+      [
+        { text: "🇮🇷 فارسی", callback_data: "menu:lang_fa" },
+        { text: "ℹ️ Help", callback_data: "menu:help" },
       ],
       [
         { text: "🔎 Use inline…", switch_inline_query: "USD" },
