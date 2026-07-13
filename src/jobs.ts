@@ -13,7 +13,7 @@ const LIST_CAST_EVERY_MS = 10 * 60 * 1000;
 
 /**
  * Charts fire once per Tehran day at 00:00.
- * Cron is */5 — allow minute 0–9 so a 1–5m late CF cron still hits midnight.
+ * Cron is every 5 minutes — allow minute 0-9 so a late CF cron still hits midnight.
  */
 const CHART_MIDNIGHT_GRACE_MIN = 10;
 
