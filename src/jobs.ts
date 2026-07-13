@@ -111,7 +111,7 @@ async function fireAlerts(env: Env): Promise<void> {
  *
  * - Price list: every ~10m (KV last-cast — CF cron is often late).
  * - Charts + daily OHLC: once per Tehran day at 00:00 sharp
- *   (grace 00:00–00:09 so delayed */5 cron still fires).
+ *   (grace 00:00-00:09 so delayed 5m cron still fires).
  */
 export async function runCasts(env: Env, force = false, atMs = Date.now()): Promise<string> {
   const now = atMs;
