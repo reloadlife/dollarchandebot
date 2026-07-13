@@ -123,7 +123,7 @@ function usdtArbLines(exchanges: ExchangeRow[]): string[] {
 
 /**
  * Channel list · hybrid v2
- * mood + Jalali + FX ticker + GOLD/COINS + USDT arb + footer
+ * Jalali + FX ticker + GOLD/COINS + USDT arb + mood (end) + footer
  */
 export async function buildPriceListHtml(env: Env): Promise<string> {
   const [rows, exchanges] = await Promise.all([
@@ -164,10 +164,6 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const coinsLine2 = coinParts.slice(2).join(" · ");
 
   const out: string[] = [
-    `✨ <b>DollarChande</b>`,
-    `بازار الان: ${mood.emoji} <b>${mood.label}</b>`,
-    `<i>(${escapeHtml(mood.sub)})</i>`,
-    "",
     `⏰ ${escapeHtml(formatJalaliTehran(ts))} · ${escapeHtml(u)}`,
     "",
     `<code>${fxBlock}</code>`,
@@ -184,7 +180,11 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     out.push("", ...arb);
   }
 
+  // تحلیل at the end (before footer)
   out.push(
+    "",
+    `📊 ${mood.emoji} <b>${mood.label}</b>`,
+    `<i>${escapeHtml(mood.sub)}</i>`,
     "",
     `🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}`,
   );
