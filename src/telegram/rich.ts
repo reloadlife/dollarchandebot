@@ -330,19 +330,29 @@ export function richExchanges(
   env: Env,
   rows: Array<{ name: string; buy: number | null; sell: number | null; mid: number | null; updated_at: number }>,
 ): string {
-  const lines = rows
+  const sorted = [...rows].sort((a, b) => (a.mid ?? 1e18) - (b.mid ?? 1e18));
+  const lines = sorted
     .map((r) => {
       const buy = r.buy != null ? formatPrice(r.buy) : "—";
       const sell = r.sell != null ? formatPrice(r.sell) : "—";
-      return `<p><b>${escapeHtml(r.name)}</b>\n${em("buy")} ${buy} · ${em("sell")} ${sell}</p>`;
+      const mid = r.mid != null ? formatPrice(r.mid) : "—";
+      return `<p><b>${escapeHtml(r.name)}</b> · mid <b>${mid}</b>\n${em("buy")} ${buy} · ${em("sell")} ${sell}</p>`;
     })
     .join("\n");
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
   const when = newest ? formatTimeTehran(newest) : "—";
+  const mids = sorted.map((r) => r.mid).filter((x): x is number => x != null);
+  const lo = mids.length ? Math.min(...mids) : null;
+  const hi = mids.length ? Math.max(...mids) : null;
+  const spread =
+    lo != null && hi != null
+      ? `<p>⬆ max <b>${formatPrice(hi)}</b> · ⬇ min <b>${formatPrice(lo)}</b> · Δ <b>${formatPrice(hi - lo)}</b></p>`
+      : "";
   return `
 <h2>${em("price")} USDT exchanges</h2>
-<p><i>Buy = you pay IRT · Sell = you receive IRT</i></p>
-${lines || "<p>No exchange data yet.</p>"}
+<p><i>${rows.length} venues · Buy = you pay · Sell = you receive (Toman)</i></p>
+${spread}
+${lines || "<p>No exchange data yet — wait for next scrape.</p>"}
 <p>${em("clock")} <tg-time unix="${newest || Math.floor(Date.now() / 1000)}" format="r">${escapeHtml(when)}</tg-time> · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
