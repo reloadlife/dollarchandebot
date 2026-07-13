@@ -18,34 +18,30 @@ function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
 }
 
-/**
- * Channel FX board — plain ISO codes (readable).
- * Weird $€₣₺₮ prefixes were hard to scan in monospace.
- */
+/** Channel FX board — Farsi names (USDT lives in its own section). */
 const FX_TICKER: Array<{ id: string; label: string }> = [
-  { id: "USD", label: "USD" },
-  { id: "EUR", label: "EUR" },
-  { id: "GBP", label: "GBP" },
-  { id: "CHF", label: "CHF" },
-  { id: "CAD", label: "CAD" },
-  { id: "TRY", label: "TRY" },
-  { id: "KWD", label: "KWD" },
-  { id: "BHD", label: "BHD" },
-  { id: "USDT", label: "USDT" },
+  { id: "USD", label: "دلار" },
+  { id: "EUR", label: "یورو" },
+  { id: "GBP", label: "پوند" },
+  { id: "CHF", label: "فرانک" },
+  { id: "CAD", label: "دلار کانادا" },
+  { id: "TRY", label: "لیر" },
+  { id: "KWD", label: "دینار کویت" },
+  { id: "BHD", label: "دینار بحرین" },
 ];
 
 const GOLD_IDS = ["MITHQAL", "GOLD18"] as const;
 const GOLD_LABEL: Record<string, string> = {
-  MITHQAL: "Mithqal",
-  GOLD18: "18k/g",
+  MITHQAL: "مثقال",
+  GOLD18: "گرم ۱۸",
 };
 const COIN_IDS = ["EMAMI", "AZADI", "HALF", "QUARTER", "GERAMI"] as const;
 const COIN_LABEL: Record<string, string> = {
-  EMAMI: "Emami",
-  AZADI: "Azadi",
-  HALF: "½",
-  QUARTER: "¼",
-  GERAMI: "Gerami",
+  EMAMI: "امامی",
+  AZADI: "آزادی",
+  HALF: "نیم",
+  QUARTER: "ربع",
+  GERAMI: "گرمی",
 };
 
 /** USDT in Toman should sit roughly here; drop broken scrapes (e.g. 10× rial). */
@@ -75,10 +71,10 @@ function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string
   return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر" };
 }
 
-function tickerLine(label: string, price: number | undefined): string {
-  const lab = label.padEnd(4, " ");
-  const val = price != null ? formatPrice(price).padStart(12, " ") : "—".padStart(12, " ");
-  return `${lab}  ${val}`;
+/** Farsi name + bold price (no monospace — RTL + Latin pad was unreadable). */
+function faPriceLine(name: string, price: number | undefined): string {
+  if (price == null) return `${escapeHtml(name)}  —`;
+  return `${escapeHtml(name)}  <b>${formatPrice(price)}</b>`;
 }
 
 /** Signed spread, e.g. +850 or −50 */
@@ -89,13 +85,10 @@ function formatSignedSpread(n: number): string {
   return "0";
 }
 
-function usdtArbLines(exchanges: ExchangeRow[]): string[] {
-  const ok = exchanges.filter(
-    (e) => saneUsdtToman(e.mid) || saneUsdtToman(e.buy) || saneUsdtToman(e.sell),
-  );
-  if (!ok.length) return [];
+type ExMid = ExchangeRow & { midN: number; buyN: number | null; sellN: number | null };
 
-  const withMid = ok
+function normalizeExchanges(exchanges: ExchangeRow[]): ExMid[] {
+  return exchanges
     .map((e) => {
       const buyN = saneUsdtToman(e.buy) ? e.buy! : null;
       const sellN = saneUsdtToman(e.sell) ? e.sell! : null;
@@ -104,37 +97,64 @@ function usdtArbLines(exchanges: ExchangeRow[]): string[] {
       if (midN == null) midN = buyN ?? sellN;
       return { ...e, midN, buyN, sellN };
     })
-    .filter((e): e is typeof e & { midN: number } => saneUsdtToman(e.midN));
+    .filter((e): e is ExMid => saneUsdtToman(e.midN));
+}
 
-  if (!withMid.length) return [];
+/**
+ * Dedicated تتر block: mid price, vs دلار, high/low exchange, arb path.
+ */
+function usdtSection(
+  usdtMid: number | undefined,
+  usdMid: number | undefined,
+  exchanges: ExchangeRow[],
+): string[] {
+  const lines: string[] = ["💰 <b>تتر</b>"];
 
-  const hi = withMid.reduce((a, b) => (b.midN > a.midN ? b : a));
-  const lo = withMid.reduce((a, b) => (b.midN < a.midN ? b : a));
-
-  const buyers = withMid.filter((e) => e.buyN != null);
-  const sellers = withMid.filter((e) => e.sellN != null);
-  const cheapBuy = buyers.length
-    ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a))
-    : null;
-  const bestSell = sellers.length
-    ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
-    : null;
-
-  const lines = [
-    `💸 <b>USDT</b>  ⬆ ${escapeHtml(hi.name)} <b>${formatPrice(hi.midN)}</b> · ⬇ ${escapeHtml(lo.name)} <b>${formatPrice(lo.midN)}</b>`,
-  ];
-  if (cheapBuy?.buyN != null && bestSell?.sellN != null) {
-    const spread = bestSell.sellN - cheapBuy.buyN;
-    lines.push(
-      `<i>arb buy ${escapeHtml(cheapBuy.name)} → sell ${escapeHtml(bestSell.name)} · ${formatPrice(spread)} Δ</i>`,
-    );
+  if (usdtMid != null) {
+    lines.push(`  قیمت  <b>${formatPrice(usdtMid)}</b>`);
+  } else {
+    lines.push("  قیمت  —");
   }
+
+  if (usdtMid != null && usdMid != null) {
+    const diff = usdtMid - usdMid;
+    const hint =
+      diff > 0 ? "تتر گران‌تر از دلار" : diff < 0 ? "تتر ارزان‌تر از دلار" : "هم‌قیمت با دلار";
+    lines.push(`  اختلاف با دلار  <b>${formatSignedSpread(diff)}</b>  <i>(${hint})</i>`);
+  }
+
+  const withMid = normalizeExchanges(exchanges);
+  if (withMid.length) {
+    const hi = withMid.reduce((a, b) => (b.midN > a.midN ? b : a));
+    const lo = withMid.reduce((a, b) => (b.midN < a.midN ? b : a));
+    lines.push(
+      `  ⬆ بالاترین  <b>${escapeHtml(hi.name)}</b> · ${formatPrice(hi.midN)}`,
+      `  ⬇ پایین‌ترین  <b>${escapeHtml(lo.name)}</b> · ${formatPrice(lo.midN)}`,
+    );
+
+    const buyers = withMid.filter((e) => e.buyN != null);
+    const sellers = withMid.filter((e) => e.sellN != null);
+    const cheapBuy = buyers.length
+      ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a))
+      : null;
+    const bestSell = sellers.length
+      ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
+      : null;
+
+    if (cheapBuy?.buyN != null && bestSell?.sellN != null) {
+      const spread = bestSell.sellN - cheapBuy.buyN;
+      lines.push(
+        `  آربیتراژ  خرید <b>${escapeHtml(cheapBuy.name)}</b> → فروش <b>${escapeHtml(bestSell.name)}</b> · <b>${formatSignedSpread(spread)}</b>`,
+      );
+    }
+  }
+
   return lines;
 }
 
 /**
- * Channel list · hybrid v2
- * Jalali + FX ticker + GOLD/COINS + USDT arb + mood (end) + footer
+ * Channel list · hybrid v2 (FA)
+ * Jalali + FX (fa) + طلا/سکه + تتر block + mood + footer
  */
 export async function buildPriceListHtml(env: Env): Promise<string> {
   const [rows, exchanges] = await Promise.all([
@@ -142,63 +162,53 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     listExchanges(env.DB).catch(() => [] as ExchangeRow[]),
   ]);
   const map = new Map(rows.map((r) => [r.symbol, r]));
-  const u = unit(env);
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
   const ts = newest || Math.floor(Date.now() / 1000);
   const mood = marketMood(map);
 
-  const fxBlock = FX_TICKER.map(({ id, label }) =>
-    tickerLine(label, map.get(id)?.price),
-  ).join("\n");
-
-  const usd = map.get("USD")?.price;
-  const usdt = map.get("USDT")?.price;
-  const usdtUsd =
-    usd != null && usdt != null ? usdt - usd : null;
+  const fxLines = FX_TICKER.map(({ id, label }) =>
+    faPriceLine(label, map.get(id)?.price),
+  );
 
   const goldLines = GOLD_IDS.map((id) => {
     const row = map.get(id);
-    const lab = (GOLD_LABEL[id] ?? id).padEnd(8, " ");
-    if (!row) return `  ${lab} —`;
+    const lab = GOLD_LABEL[id] ?? id;
+    if (!row) return `  ${escapeHtml(lab)}  —`;
     const d = formatDeltaQuiet(row.price, row.prev_price);
-    return `  ${lab} <b>${formatPrice(row.price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
+    return `  ${escapeHtml(lab)}  <b>${formatPrice(row.price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
   });
 
   const coinParts = COIN_IDS.map((id) => {
     const row = map.get(id);
     const lab = COIN_LABEL[id] ?? id;
-    if (!row) return `${lab} —`;
-    return `${lab} <b>${formatPrice(row.price)}</b>`;
+    if (!row) return `${escapeHtml(lab)} —`;
+    return `${escapeHtml(lab)} <b>${formatPrice(row.price)}</b>`;
   });
-  // two compact coin lines (matches approved mock)
   const coinsLine1 = coinParts.slice(0, 2).join(" · ");
   const coinsLine2 = coinParts.slice(2).join(" · ");
 
+  const usd = map.get("USD")?.price;
+  const usdt = map.get("USDT")?.price;
+
   const out: string[] = [
-    `⏰ ${escapeHtml(formatJalaliTehran(ts))} · ${escapeHtml(u)}`,
+    `⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان`,
     "",
-    `<code>${fxBlock}</code>`,
-  ];
-
-  if (usdtUsd != null) {
-    out.push(`<i>USDT − USD · ${formatSignedSpread(usdtUsd)}</i>`);
-  }
-
-  out.push("", "🥇 <b>GOLD</b>", ...goldLines, "", "🪙 <b>COINS</b>", `  ${coinsLine1}`, `  ${coinsLine2}`);
-
-  const arb = usdtArbLines(exchanges);
-  if (arb.length) {
-    out.push("", ...arb);
-  }
-
-  // تحلیل at the end (before footer)
-  out.push(
+    ...fxLines,
+    "",
+    "🥇 <b>طلا</b>",
+    ...goldLines,
+    "",
+    "🪙 <b>سکه</b>",
+    `  ${coinsLine1}`,
+    `  ${coinsLine2}`,
+    "",
+    ...usdtSection(usdt, usd, exchanges),
     "",
     `📊 ${mood.emoji} <b>${mood.label}</b>`,
     `<i>${escapeHtml(mood.sub)}</i>`,
     "",
     `🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}`,
-  );
+  ];
 
   return out.join("\n");
 }
