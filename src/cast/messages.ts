@@ -254,6 +254,9 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   return out.join("\n");
 }
 
+/** Channel posts should not ding subscribers. */
+const CHANNEL_SILENT = { disable_notification: true } as const;
+
 export async function castPriceList(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) {
     throw new Error("TELEGRAM_CHANNEL_ID secret is empty — cannot cast price list");
@@ -261,7 +264,7 @@ export async function castPriceList(env: Env): Promise<void> {
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
   try {
-    await sendMessage(env, chatId, text);
+    await sendMessage(env, chatId, text, CHANNEL_SILENT);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("castPriceList sendMessage failed", { chatId, err: msg });
@@ -343,6 +346,7 @@ export async function cast6hCharts(env: Env): Promise<void> {
       env.TELEGRAM_CHANNEL_ID,
       png,
       `📊 <b>6-hour update</b>\n${caption}`,
+      CHANNEL_SILENT,
     );
   }
 }
@@ -372,9 +376,10 @@ export async function castDaily(env: Env): Promise<void> {
       env.TELEGRAM_CHANNEL_ID,
       png,
       `🗓 <b>Daily chart</b>\n${caption}`,
+      CHANNEL_SILENT,
     );
   }
 
   ohlcLines.push("", `📣 @${escapeHtml(env.CHANNEL_USERNAME)}`);
-  await sendMessage(env, env.TELEGRAM_CHANNEL_ID, ohlcLines.join("\n"));
+  await sendMessage(env, env.TELEGRAM_CHANNEL_ID, ohlcLines.join("\n"), CHANNEL_SILENT);
 }
