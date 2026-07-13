@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
-    "deploy": "wrangler deploy",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:wrangler": "wrangler deploy --keep-vars",
     "types": "wrangler types",
     "db:local": "wrangler d1 migrations apply dollarchande --local",
     "db:remote": "wrangler d1 migrations apply dollarchande --remote",

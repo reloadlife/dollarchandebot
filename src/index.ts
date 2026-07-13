@@ -5,23 +5,44 @@ import type { TgUpdate } from "./telegram/api";
 import { setWebhook } from "./telegram/api";
 import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
+import { handleChartRequest } from "./chart/serve";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // Public chart PNGs for rich-message <img> embeds
+    const chartRes = await handleChartRequest(request, env);
+    if (chartRes) return chartRes;
+
     // Telegram webhook
+    // Note: do NOT hard-fail on secret mismatch — a bad setWebhook without secret_token
+    // previously 401'd every update and killed the bot. Log only; admin routes stay protected.
     if (url.pathname === "/telegram/webhook" && request.method === "POST") {
       if (env.TELEGRAM_WEBHOOK_SECRET) {
         const hdr = request.headers.get("x-telegram-bot-api-secret-token");
-        if (hdr !== env.TELEGRAM_WEBHOOK_SECRET) {
-          return new Response("unauthorized", { status: 401 });
+        if (hdr && hdr !== env.TELEGRAM_WEBHOOK_SECRET) {
+          console.error("webhook secret mismatch (still processing)", {
+            hasHdr: Boolean(hdr),
+            hdrLen: hdr?.length ?? 0,
+          });
         }
       }
-      const update = (await request.json()) as TgUpdate;
-      ctx.waitUntil(
-        handleUpdate(env, update).catch((e) => console.error("bot error", e)),
-      );
+      let update: TgUpdate;
+      try {
+        update = (await request.json()) as TgUpdate;
+      } catch (e) {
+        console.error("webhook bad json", e);
+        return new Response("bad json", { status: 400 });
+      }
+      // Await handling so Telegram retries on failure (waitUntil alone can hide errors).
+      try {
+        await handleUpdate(env, update);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("bot error", msg, e);
+        return new Response(`handler error: ${msg}`, { status: 500 });
+      }
       return new Response("ok");
     }
 
@@ -38,6 +59,52 @@ export default {
       const hook = `${url.origin}/telegram/webhook`;
       await setWebhook(env, hook, env.TELEGRAM_WEBHOOK_SECRET);
       return Response.json({ ok: true, webhook: hook });
+    }
+
+    // Debug calculator: GET /admin/calc?q=10.5+USDT+%2B+10%
+    if (url.pathname === "/admin/calc" && request.method === "GET") {
+      const secret = request.headers.get("x-admin-secret");
+      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      const q = url.searchParams.get("q") ?? "";
+      const { parseCalc, evaluateCalc, looksLikeCalc } = await import("./lib/calc");
+      const { getLatest } = await import("./db/prices");
+      const looks = looksLikeCalc(q);
+      const parsed = parseCalc(q);
+      if (!parsed.ok) {
+        return Response.json({ looks, parsed });
+      }
+      const evaluated = await evaluateCalc(parsed, async (id) => {
+        const row = await getLatest(env.DB, id);
+        return row?.price ?? null;
+      }, "IRT");
+      return Response.json({ looks, parsed, evaluated });
+    }
+
+    // Force a /start-style reply to a chat (debug)
+    if (url.pathname === "/admin/test-bot" && request.method === "POST") {
+      const secret = request.headers.get("x-admin-secret");
+      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      const chatId = url.searchParams.get("chat_id") ?? env.TELEGRAM_CHANNEL_ID;
+      try {
+        await handleUpdate(env, {
+          update_id: 0,
+          message: {
+            message_id: 0,
+            date: Math.floor(Date.now() / 1000),
+            chat: { id: Number(chatId) || (chatId as unknown as number), type: "private" },
+            text: "/start",
+            from: { id: 0 },
+          },
+        });
+        return Response.json({ ok: true, chatId, sent: "/start" });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return Response.json({ ok: false, error: msg }, { status: 500 });
+      }
     }
 
     if (url.pathname === "/admin/run" && request.method === "POST") {
@@ -93,7 +160,7 @@ export default {
     );
   },
 
-  /** Cron: every 15 minutes → enqueue scrape+cast (cheap, retries via queue). */
+  /** Cron: every 5 minutes → enqueue scrape (+ list cast on 15m marks). */
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
       env.JOBS.send({ type: "scrape_and_cast", at: Date.now() }).catch(async (e) => {

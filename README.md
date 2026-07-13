@@ -45,6 +45,16 @@ src/
 migrations/0001_init.sql
 ```
 
+## Deploy
+
+```bash
+bun run deploy
+```
+
+That’s it. Tries `wrangler deploy` first; if this host’s CF API RTT trips wrangler’s **10s** connect timeout, falls back to a long-timeout API upload (`scripts/cf-deploy.py`) with the same bindings/secrets/cron. Secrets are kept either way.
+
+Force plain wrangler: `bun run deploy:wrangler`.
+
 ## Setup
 
 ### 1. Install
@@ -82,6 +92,16 @@ bunx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 ```
 
 Bot must be **admin** in the channel (post messages).
+
+### Enable Guest Mode (BotFather)
+
+Required so users can `@DollarChandeBot USD` in **any** chat (bot need not be a member):
+
+1. Open [@BotFather](https://t.me/BotFather) → your bot → **Bot Settings** (Mini App)
+2. Enable **Guest Mode**
+3. Confirm `getMe` shows `"supports_guest_queries": true`
+
+Webhook already listens for `guest_message` and answers via `answerGuestQuery`.
 
 Local secrets: copy `.dev.vars.example` → `.dev.vars`.
 

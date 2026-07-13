@@ -1,5 +1,6 @@
 import type { Env } from "../env";
 import { getAllLatest, getLatest, getOhlcDays, getTicks24h, type LatestRow } from "../db/prices";
+// getOhlcDays used for 7d charts
 import { channelSymbols, resolveSymbol, type SymbolDef } from "../symbols";
 import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
 import { renderLineChartPng } from "../lib/chart";
@@ -64,27 +65,39 @@ export async function buildSymbolCaption(
     .join("\n");
 }
 
-export async function chartPngForSymbol(env: Env, def: SymbolDef): Promise<{
+export async function chartPngForSymbol(
+  env: Env,
+  def: SymbolDef,
+  range: "24h" | "7d" = "24h",
+): Promise<{
   png: Uint8Array;
   caption: string;
   row: LatestRow | null;
 }> {
   const row = await getLatest(env.DB, def.id);
-  const ticks = await getTicks24h(env.DB, def.id);
-  const points =
-    ticks.length > 0
-      ? ticks
-      : row
-        ? [
-            { ts: row.updated_at - 900, price: row.prev_price ?? row.price },
-            { ts: row.updated_at, price: row.price },
-          ]
-        : [];
+  let points: Array<{ ts: number; price: number }> = [];
+
+  if (range === "7d") {
+    const ohlc = await getOhlcDays(env.DB, def.id, 7);
+    points = ohlc.map((d) => ({
+      ts: Math.floor(new Date(d.day + "T12:00:00Z").getTime() / 1000),
+      price: d.close,
+    }));
+  } else {
+    points = await getTicks24h(env.DB, def.id);
+  }
+
+  if (points.length < 2 && row) {
+    points = [
+      { ts: row.updated_at - 300, price: row.prev_price ?? row.price },
+      { ts: row.updated_at, price: row.price },
+    ];
+  }
 
   const caption = await buildSymbolCaption(env, def, row);
   const png = await renderLineChartPng(points, {
     title: `${def.id} · ${def.name}`,
-    subtitle: `24h · ${unit(env)} · DollarChande`,
+    subtitle: `${range} · ${unit(env)} · DollarChande`,
   });
   return { png, caption, row };
 }

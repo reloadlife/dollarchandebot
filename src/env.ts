@@ -8,6 +8,8 @@ export interface Env {
   CHANNEL_USERNAME: string;
   BOT_USERNAME: string;
   PRICE_UNIT: string;
+  /** Public origin for embeddable chart PNGs in rich messages */
+  PUBLIC_BASE_URL?: string;
 }
 
 export type JobType =

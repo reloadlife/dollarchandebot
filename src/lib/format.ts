@@ -4,14 +4,28 @@ export function formatPrice(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }
 
-export function formatDelta(curr: number, prev: number | null | undefined): string {
-  if (prev == null || prev === 0) return "0 🔀";
+export type DeltaTone = "up" | "down" | "flat";
+
+export function deltaTone(curr: number, prev: number | null | undefined): DeltaTone {
+  if (prev == null || prev === 0 || curr === prev) return "flat";
+  return curr > prev ? "up" : "down";
+}
+
+export function formatDelta(
+  curr: number,
+  prev: number | null | undefined,
+  emojis?: { up: string; down: string; flat: string },
+): string {
+  const up = emojis?.up ?? "📈";
+  const down = emojis?.down ?? "📉";
+  const flat = emojis?.flat ?? "➖";
+  if (prev == null || prev === 0) return `${flat} 0`;
   const d = curr - prev;
-  if (d === 0) return "0 🔀";
+  if (d === 0) return `${flat} 0`;
   const pct = (d / prev) * 100;
-  const arrow = d > 0 ? "🟢 ▲" : "🔴 ▼";
+  const icon = d > 0 ? up : down;
   const sign = d > 0 ? "+" : "";
-  return `${arrow} ${sign}${formatPrice(d)} (${sign}${pct.toFixed(2)}%)`;
+  return `${icon} ${sign}${formatPrice(d)} (${sign}${pct.toFixed(2)}%)`;
 }
 
 export function formatTimeTehran(tsSec: number): string {

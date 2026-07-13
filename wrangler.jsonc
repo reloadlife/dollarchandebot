@@ -14,7 +14,9 @@
     "CHANNEL_USERNAME": "AlanDollarChande",
     "BOT_USERNAME": "DollarChandeBot",
     // prices shown as Toman (bonbast/tetherland native unit)
-    "PRICE_UNIT": "Toman"
+    "PRICE_UNIT": "Toman",
+    // HTTPS origin for <img> charts inside rich messages
+    "PUBLIC_BASE_URL": "https://dollarchande.mamaddev.workers.dev"
   },
 
   "d1_databases": [
@@ -49,10 +51,10 @@
     ]
   },
 
-  // Every 15m: scrape + price list cast.
+  // Every 5m: scrape (+ tick). Channel list still every 15m in jobs.
   // Consumer decides 6h chart / daily OHLC from the clock.
   "triggers": {
-    "crons": ["*/15 * * * *"]
+    "crons": ["*/5 * * * *"]
   },
 
   "observability": {

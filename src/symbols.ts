@@ -74,8 +74,34 @@ for (const s of SYMBOLS) {
   for (const a of s.aliases) byAlias.set(a.toLowerCase(), s);
 }
 
+/**
+ * Normalize user input so these all mean the same symbol:
+ *   USD  |  usd  |  $USD  |  /USD  |  /usd@BotName
+ */
+export function normalizeSymbolQuery(raw: string): string {
+  let q = raw.trim();
+  if (!q) return "";
+
+  // /USD@DollarChandeBot extra → USD
+  if (q.startsWith("/")) {
+    q = q.slice(1);
+    q = (q.split(/\s+/)[0] ?? "").split("@")[0] ?? "";
+  } else {
+    // first token only: "$USD please" → $USD
+    q = q.split(/\s+/)[0] ?? "";
+  }
+
+  // strip one or more leading $ (and optional spaces after $)
+  q = q.replace(/^\$+\s*/u, "");
+  // leftover slash forms like /$USD
+  q = q.replace(/^\/+/, "");
+  q = q.replace(/^\$+\s*/u, "");
+
+  return q.trim().toLowerCase();
+}
+
 export function resolveSymbol(raw: string): SymbolDef | null {
-  const q = raw.trim().toLowerCase().replace(/^\$/, "");
+  const q = normalizeSymbolQuery(raw);
   if (!q) return null;
   return byAlias.get(q) ?? byId.get(q.toUpperCase()) ?? null;
 }
