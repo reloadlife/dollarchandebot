@@ -113,3 +113,52 @@ export function channelSymbols(): SymbolDef[] {
 export function allSymbolIds(): string[] {
   return SYMBOLS.map((s) => s.id);
 }
+
+/** Hub / empty-search defaults */
+export function popularSymbols(): SymbolDef[] {
+  const want = ["USD", "USDT", "EUR", "GOLD18", "EMAMI", "GBP", "TRY", "AZADI"];
+  const out: SymbolDef[] = [];
+  for (const id of want) {
+    const s = byId.get(id);
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+export function symbolsByKind(kind: SymbolKind): SymbolDef[] {
+  return SYMBOLS.filter((s) => s.kind === kind);
+}
+
+/**
+ * Ranked fuzzy search over id, name, aliases (en/fa).
+ * Empty query → popular symbols.
+ */
+export function searchSymbols(query: string, limit = 10): SymbolDef[] {
+  const q = query.trim().toLowerCase().replace(/^\$+/, "");
+  if (!q) return popularSymbols().slice(0, limit);
+
+  type Scored = { s: SymbolDef; score: number };
+  const scored: Scored[] = [];
+
+  for (const s of SYMBOLS) {
+    const idL = s.id.toLowerCase();
+    const nameL = s.name.toLowerCase();
+    const aliases = s.aliases.map((a) => a.toLowerCase());
+
+    let score = 0;
+    if (idL === q) score = 100;
+    else if (aliases.includes(q)) score = 90;
+    else if (idL.startsWith(q)) score = 80;
+    else if (aliases.some((a) => a.startsWith(q))) score = 70;
+    else if (nameL.startsWith(q)) score = 60;
+    else if (idL.includes(q)) score = 50;
+    else if (nameL.includes(q)) score = 40;
+    else if (aliases.some((a) => a.includes(q))) score = 35;
+    else if (s.sourceKey.toLowerCase().includes(q)) score = 30;
+
+    if (score > 0) scored.push({ s, score });
+  }
+
+  scored.sort((a, b) => b.score - a.score || a.s.id.localeCompare(b.s.id));
+  return scored.slice(0, limit).map((x) => x.s);
+}

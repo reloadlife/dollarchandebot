@@ -1,5 +1,9 @@
 import type { Env } from "../env";
-import { normalizeSymbolQuery, resolveSymbol } from "../symbols";
+import {
+  normalizeSymbolQuery,
+  resolveSymbol,
+  searchSymbols,
+} from "../symbols";
 import {
   answerCallbackQuery,
   answerGuestQuery,
@@ -30,24 +34,41 @@ import {
   richCalc,
   richCalcError,
   richCompare,
-  richExchanges,
-  richHelp,
-  richHistory,
   richMulti,
   richOhlc,
-  richSettings,
-  richStart,
   richSymbolPrice,
   richSymbols,
   richUnknown,
-  startKeyboard,
 } from "./rich";
+import type { SymbolDef } from "../symbols";
 import { chartPublicUrl, ensureChartPng, type ChartRange } from "../chart/serve";
 import { listExchanges } from "../db/exchanges";
-import { addAlert, countAlerts, deleteAlert, listAlerts } from "../db/alerts";
+import {
+  addAlert,
+  countAlerts,
+  deleteAlert,
+  listAlerts,
+  type AlertMode,
+} from "../db/alerts";
 import { getSettings, setFeePct, setLang, type Lang } from "../db/settings";
 import { rateLimit } from "../lib/ratelimit";
 import { t } from "../lib/i18n";
+import {
+  menuOnlyKeyboard,
+  parseCallback,
+  screenAlertHelp,
+  screenAlerts,
+  screenCategories,
+  screenExchanges,
+  screenHelp,
+  screenHistory,
+  screenHome,
+  screenSettings,
+  screenSymbolCard,
+  screenSymbolList,
+  showScreen,
+  type ShowTarget,
+} from "./ui";
 
 /** Normal-mode replies use Rich Messages; fall back to classic HTML if needed. */
 async function replyRich(
@@ -60,9 +81,8 @@ async function replyRich(
     await sendRichMessage(env, chatId, html, extra);
   } catch (e) {
     console.error("sendRichMessage failed, fallback sendMessage", e);
-    // strip some rich-only tags for crude fallback
     const plain = html
-      .replace(/<\/?(h[1-6]|ul|ol|li|table|tr|td|th|p|tg-time)[^>]*>/gi, "\n")
+      .replace(/<\/?(h[1-6]|ul|ol|li|table|tr|td|th|p|tg-time|img)[^>]*>/gi, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     await sendMessage(env, chatId, plain, extra);
@@ -94,13 +114,10 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   });
 
   if (update.inline_query) {
-    // Inline queries are live keystrokes; Telegram does not attach a date.
-    // Stale backlog is dropped on webhook setup (drop_pending_updates).
     await handleInline(env, update.inline_query.id, update.inline_query.query);
     return;
   }
 
-  // Guest Mode: @mention in a chat the bot isn't a member of
   if (update.guest_message) {
     await handleGuestMessage(env, update.guest_message);
     return;
@@ -117,7 +134,6 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     return;
   }
 
-  // Ignore dead updates (e.g. backlog replay, delayed delivery)
   if (isDeadUpdate(msg.date)) {
     console.log("skip dead update", {
       update_id: update.update_id,
@@ -134,7 +150,6 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const command = parseCommand(text);
   console.log("cmd", command, "chat", chatId);
 
-  // Rate limit: 30 msgs / minute / chat
   const rl = await rateLimit(env.CACHE, `chat:${chatId}`, 30, 60);
   if (!rl.ok) {
     const settings = await getSettings(env.DB, String(chatId));
@@ -142,66 +157,49 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     return;
   }
 
-  const extra = replyParams(msg.message_id);
+  const replyTo = msg.message_id;
   const settings = await getSettings(env.DB, String(chatId));
+  const sendTarget: ShowTarget = { chatId, replyTo };
 
   if (command?.cmd === "start") {
-    // /start fa | /start en — optional lang payload
     const payload = command.arg.toLowerCase();
     if (payload === "fa" || payload === "en") {
       await setLang(env.DB, String(chatId), payload as Lang);
       settings.lang = payload as Lang;
     }
-    await replyRich(env, chatId, richStart(env, settings.lang), {
-      ...extra,
-      reply_markup: startKeyboard(env, settings.lang),
-    });
+    await showScreen(env, sendTarget, screenHome(env, settings.lang));
     return;
   }
 
   if (command?.cmd === "help") {
-    await replyRich(env, chatId, richHelp(env, settings.lang), {
-      ...extra,
-      reply_markup: startKeyboard(env, settings.lang),
-    });
+    await showScreen(env, sendTarget, screenHelp(env, settings.lang));
     return;
   }
 
   if (command?.cmd === "symbols" || command?.cmd === "symbol" || command?.cmd === "list") {
-    await replyRich(env, chatId, richSymbols(settings.lang), extra);
+    if (command.arg.toLowerCase() === "all") {
+      await replyRich(env, chatId, richSymbols(settings.lang), {
+        ...replyParams(replyTo),
+        reply_markup: menuOnlyKeyboard(settings.lang),
+      });
+      return;
+    }
+    await showScreen(env, sendTarget, screenCategories(settings.lang));
     return;
   }
 
-  // /menu — same as start keyboard refresh
-  if (command?.cmd === "menu") {
-    await replyRich(env, chatId, richStart(env, settings.lang), {
-      ...extra,
-      reply_markup: startKeyboard(env, settings.lang),
-    });
-    return;
-  }
-
-  // /settings | /lang en|fa | /fee 2
   if (command?.cmd === "settings") {
-    await replyRich(
+    await showScreen(
       env,
-      chatId,
-      richSettings(env, settings.lang, settings.fee_pct),
-      {
-        ...extra,
-        reply_markup: startKeyboard(env, settings.lang),
-      },
+      sendTarget,
+      screenSettings(env, settings.lang, settings.fee_pct),
     );
     return;
   }
   if (command?.cmd === "lang") {
     const lang = (command.arg.toLowerCase() === "fa" ? "fa" : "en") as Lang;
     await setLang(env.DB, String(chatId), lang);
-    await replyRich(env, chatId, richStart(env, lang), {
-      ...extra,
-      reply_markup: startKeyboard(env, lang),
-    });
-    await sendMessage(env, chatId, `${t(lang, "langSet")} <b>${lang}</b>`);
+    await showScreen(env, sendTarget, screenHome(env, lang));
     return;
   }
   if (command?.cmd === "fee") {
@@ -211,18 +209,20 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       return;
     }
     await setFeePct(env.DB, String(chatId), n);
-    await sendMessage(env, chatId, `${t(settings.lang, "feeSet")} <b>${n}%</b>`);
+    await showScreen(
+      env,
+      sendTarget,
+      screenSettings(env, settings.lang, n),
+    );
     return;
   }
 
-  // /exchanges — USDT books
   if (command?.cmd === "exchanges" || command?.cmd === "usdt") {
     const rows = await listExchanges(env.DB);
-    await replyRich(env, chatId, richExchanges(env, rows), extra);
+    await showScreen(env, sendTarget, screenExchanges(env, settings.lang, rows));
     return;
   }
 
-  // /compare USD USDT
   if (command?.cmd === "compare" || command?.cmd === "vs") {
     const parts = command.arg.split(/\s+/).filter(Boolean);
     const a = resolveSymbol(parts[0] ?? "USD");
@@ -244,12 +244,14 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         { id: a.id, name: a.name, emoji: a.emoji, price: ra.price },
         { id: b.id, name: b.name, emoji: b.emoji, price: rb.price },
       ),
-      extra,
+      {
+        ...replyParams(replyTo),
+        reply_markup: menuOnlyKeyboard(settings.lang),
+      },
     );
     return;
   }
 
-  // /history USD | /ohlc USD
   if (command?.cmd === "history" || command?.cmd === "ohlc") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
@@ -262,32 +264,38 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         env,
         chatId,
         richOhlc(env, def.id, def.emoji, days[days.length - 1] ?? null),
-        extra,
+        {
+          ...replyParams(replyTo),
+          reply_markup: menuOnlyKeyboard(settings.lang),
+        },
       );
     } else {
-      await replyRich(env, chatId, richHistory(env, def.id, def.emoji, days), extra);
+      await showScreen(
+        env,
+        sendTarget,
+        screenHistory(env, settings.lang, def.id, def.emoji, days),
+      );
     }
     return;
   }
 
-  // /chart7d USD | /7d USD
   if (command?.cmd === "chart7d" || command?.cmd === "7d") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
       await sendMessage(env, chatId, t(settings.lang, "usage7d"));
       return;
     }
-    await sendSymbolCard(env, chatId, def.id, extra, "7d");
+    await sendSymbolCard(env, chatId, def.id, settings.lang, sendTarget, "7d");
     return;
   }
 
-  // /alert USD above 180000 | /alerts | /unalert 3
+  // /alert USD above 180000 [once|every] | /alerts | /unalert 3
   if (command?.cmd === "alert") {
     const m = command.arg.match(
-      /^(\S+)\s+(above|below|move|pct|move_pct)\s+([\d.]+)%?$/i,
+      /^(\S+)\s+(above|below|move|pct|move_pct)\s+([\d.]+)%?(?:\s+(once|one|repeat|every|multi|always))?$/i,
     );
     if (!m) {
-      await sendMessage(env, chatId, t(settings.lang, "usageAlert"));
+      await showScreen(env, sendTarget, screenAlertHelp(settings.lang));
       return;
     }
     const def = resolveSymbol(m[1] ?? "");
@@ -309,28 +317,30 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     if (d === "below") direction = "below";
     if (d === "move" || d === "pct" || d === "move_pct") direction = "move_pct";
     const thr = Number(m[3]);
-    const id = await addAlert(env.DB, String(chatId), def.id, direction, thr);
+    const modeRaw = (m[4] ?? "once").toLowerCase();
+    const mode: AlertMode =
+      modeRaw === "repeat" ||
+      modeRaw === "every" ||
+      modeRaw === "multi" ||
+      modeRaw === "always"
+        ? "repeat"
+        : "once";
+    const id = await addAlert(env.DB, String(chatId), def.id, direction, thr, mode);
+    const modeLabel =
+      mode === "repeat"
+        ? t(settings.lang, "alertModeRepeat")
+        : t(settings.lang, "alertModeOnce");
     await sendMessage(
       env,
       chatId,
-      `${t(settings.lang, "alertAdded")} #${id}\n<code>${def.id}</code> ${direction} ${thr}`,
+      `${t(settings.lang, "alertAdded")} #${id}\n<code>${def.id}</code> ${direction} ${thr} · ${modeLabel}`,
+      { reply_markup: menuOnlyKeyboard(settings.lang) },
     );
     return;
   }
   if (command?.cmd === "alerts") {
     const rows = await listAlerts(env.DB, String(chatId));
-    if (!rows.length) {
-      await sendMessage(env, chatId, t(settings.lang, "alertNone"));
-      return;
-    }
-    const body = rows
-      .map((a) => `#${a.id} <code>${a.symbol}</code> ${a.direction} ${a.threshold}`)
-      .join("\n");
-    await sendMessage(
-      env,
-      chatId,
-      `🔔 <b>${t(settings.lang, "alertsTitle")}</b>\n${body}\n\n/unalert ID`,
-    );
+    await showScreen(env, sendTarget, screenAlerts(settings.lang, rows));
     return;
   }
   if (command?.cmd === "unalert" || command?.cmd === "delalert") {
@@ -347,10 +357,14 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         ? `${t(settings.lang, "alertDeleted")} #${id}`
         : t(settings.lang, "alertNotFound"),
     );
+    if (ok) {
+      const rows = await listAlerts(env.DB, String(chatId));
+      await showScreen(env, { chatId }, screenAlerts(settings.lang, rows));
+    }
     return;
   }
 
-  // Multi-symbol: "USD USDT EUR" (2+ known symbols, no ops)
+  // Multi-symbol: "USD USDT EUR"
   const multi = tryMultiSymbols(text);
   if (multi) {
     const rows: Array<{ id: string; emoji: string; price: number }> = [];
@@ -360,97 +374,231 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       if (row) rows.push({ id, emoji: def.emoji, price: row.price });
     }
     if (rows.length) {
-      await replyRich(env, chatId, richMulti(env, rows), extra);
+      await replyRich(env, chatId, richMulti(env, rows), {
+        ...replyParams(replyTo),
+        reply_markup: menuOnlyKeyboard(settings.lang),
+      });
       return;
     }
   }
 
-  // Calculator (fee from settings)
   if (looksLikeCalc(text) || command?.cmd === "calc") {
     const q = command?.cmd === "calc" ? command.arg : text;
-    await replyCalc(env, chatId, q, extra, settings.fee_pct);
+    await replyCalc(env, chatId, q, {
+      ...replyParams(replyTo),
+      reply_markup: menuOnlyKeyboard(settings.lang),
+    }, settings.fee_pct);
     return;
   }
 
-  // Plain symbol (optional "7d" suffix: USD 7d)
+  // Plain symbol (optional "7d" suffix)
   const rangeMatch = text.match(/^(.+?)\s+(7d|24h)$/i);
   const symRaw = rangeMatch ? rangeMatch[1]! : text;
   const range: ChartRange = rangeMatch?.[2]?.toLowerCase() === "7d" ? "7d" : "24h";
   const def = resolveSymbol(symRaw);
   if (!def) {
-    // Unknown slash commands → friendly help pointer
     if (command) {
       await sendMessage(env, chatId, t(settings.lang, "unknown"));
       return;
     }
+    // Try search suggestions for unknown text
+    const hits = searchSymbols(text, 5);
+    if (hits.length) {
+      const lines = hits
+        .map((s) => `• ${s.emoji} <code>${s.id}</code> — ${escapeHtml(s.name)}`)
+        .join("\n");
+      await replyRich(
+        env,
+        chatId,
+        `<h3>❓ ${escapeHtml(normalizeSymbolQuery(text) || text)}</h3>
+<p>${settings.lang === "fa" ? "منظورت یکی از اینا بود؟" : "Did you mean?"}</p>
+<p>${lines}</p>
+<p><i>${settings.lang === "fa" ? "کد را بفرست یا /start" : "Send a code or /start"}</i></p>`,
+        {
+          ...replyParams(replyTo),
+          reply_markup: {
+            inline_keyboard: [
+              ...chunk(
+                hits.map((s) => ({
+                  text: `${s.emoji} ${s.id}`,
+                  callback_data: `s:${s.id}`,
+                })),
+                3,
+              ),
+              [{ text: t(settings.lang, "uiMenu"), callback_data: "h" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
     const shown = normalizeSymbolQuery(text) || text;
-    await replyRich(env, chatId, richUnknown(shown, settings.lang), extra);
+    await replyRich(env, chatId, richUnknown(shown, settings.lang), {
+      ...replyParams(replyTo),
+      reply_markup: menuOnlyKeyboard(settings.lang),
+    });
     return;
   }
 
-  await sendSymbolCard(env, chatId, def.id, extra, range);
+  await sendSymbolCard(env, chatId, def.id, settings.lang, sendTarget, range);
+}
+
+function chunk<T>(arr: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
 }
 
 async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
   const data = cq.data ?? "";
   const chatId = cq.message?.chat?.id;
+  const messageId = cq.message?.message_id;
   if (!chatId) {
     await answerCallbackQuery(env, cq.id).catch(() => undefined);
     return;
   }
 
-  const settings = await getSettings(env.DB, String(chatId));
-  const extra = replyParams(cq.message?.message_id);
+  const parsed = parseCallback(data);
+  if (parsed.type === "noop") {
+    await answerCallbackQuery(env, cq.id).catch(() => undefined);
+    return;
+  }
+
+  let settings = await getSettings(env.DB, String(chatId));
+  const target: ShowTarget = {
+    chatId,
+    messageId: messageId && messageId > 0 ? messageId : undefined,
+  };
+
+  let toast: string | undefined;
 
   try {
-    if (data === "noop:symbols" || data === "menu:symbols") {
-      await replyRich(env, chatId, richSymbols(settings.lang), extra);
-      await answerCallbackQuery(env, cq.id);
-      return;
+    switch (parsed.type) {
+      case "home":
+        await showScreen(env, target, screenHome(env, settings.lang));
+        break;
+
+      case "categories":
+        await showScreen(env, target, screenCategories(settings.lang));
+        break;
+
+      case "browse":
+        await showScreen(
+          env,
+          target,
+          screenSymbolList(settings.lang, parsed.kind, parsed.page),
+        );
+        break;
+
+      case "symbol": {
+        const def = resolveSymbol(parsed.id);
+        if (!def) {
+          await showScreen(env, target, screenCategories(settings.lang));
+          break;
+        }
+        await renderSymbolScreen(env, target, settings.lang, def.id, parsed.range);
+        break;
+      }
+
+      case "history": {
+        const def = resolveSymbol(parsed.id);
+        if (!def) break;
+        const days = await getOhlcDays(env.DB, def.id, 7);
+        await showScreen(
+          env,
+          target,
+          screenHistory(env, settings.lang, def.id, def.emoji, days),
+        );
+        break;
+      }
+
+      case "exchanges": {
+        const rows = await listExchanges(env.DB);
+        await showScreen(
+          env,
+          target,
+          screenExchanges(env, settings.lang, rows),
+        );
+        break;
+      }
+
+      case "alerts": {
+        const rows = await listAlerts(env.DB, String(chatId));
+        await showScreen(env, target, screenAlerts(settings.lang, rows));
+        break;
+      }
+
+      case "alertDelete": {
+        const ok = await deleteAlert(env.DB, String(chatId), parsed.id);
+        const rows = await listAlerts(env.DB, String(chatId));
+        await showScreen(env, target, screenAlerts(settings.lang, rows));
+        toast = ok
+          ? t(settings.lang, "toastDeleted")
+          : t(settings.lang, "alertNotFound");
+        break;
+      }
+
+      case "alertHelp":
+        await showScreen(env, target, screenAlertHelp(settings.lang));
+        break;
+
+      case "settings":
+        await showScreen(
+          env,
+          target,
+          screenSettings(env, settings.lang, settings.fee_pct),
+        );
+        break;
+
+      case "setLang": {
+        await setLang(env.DB, String(chatId), parsed.lang);
+        settings = await getSettings(env.DB, String(chatId));
+        await showScreen(
+          env,
+          target,
+          screenSettings(env, settings.lang, settings.fee_pct),
+        );
+        toast =
+          parsed.lang === "fa"
+            ? t(settings.lang, "toastLangFa")
+            : t(settings.lang, "toastLangEn");
+        break;
+      }
+
+      case "setFee": {
+        await setFeePct(env.DB, String(chatId), parsed.fee);
+        settings = await getSettings(env.DB, String(chatId));
+        await showScreen(
+          env,
+          target,
+          screenSettings(env, settings.lang, settings.fee_pct),
+        );
+        toast = t(settings.lang, "toastFee");
+        break;
+      }
+
+      case "help":
+        await showScreen(env, target, screenHelp(env, settings.lang));
+        break;
+
+      default:
+        await showScreen(env, target, screenHome(env, settings.lang));
+        break;
     }
-    if (data === "noop:exchanges" || data === "menu:exchanges") {
-      const rows = await listExchanges(env.DB);
-      await replyRich(env, chatId, richExchanges(env, rows), extra);
-      await answerCallbackQuery(env, cq.id);
-      return;
-    }
-    if (data === "menu:help") {
-      await replyRich(env, chatId, richHelp(env, settings.lang), {
-        ...extra,
-        reply_markup: startKeyboard(env, settings.lang),
-      });
-      await answerCallbackQuery(env, cq.id);
-      return;
-    }
-    if (data === "menu:lang_fa") {
-      await setLang(env.DB, String(chatId), "fa");
-      await replyRich(env, chatId, richStart(env, "fa"), {
-        reply_markup: startKeyboard(env, "fa"),
-      });
-      await answerCallbackQuery(env, cq.id, "فارسی");
-      return;
-    }
-    if (data === "menu:lang_en") {
-      await setLang(env.DB, String(chatId), "en");
-      await replyRich(env, chatId, richStart(env, "en"), {
-        reply_markup: startKeyboard(env, "en"),
-      });
-      await answerCallbackQuery(env, cq.id, "English");
-      return;
-    }
-    await answerCallbackQuery(env, cq.id);
+
+    await answerCallbackQuery(env, cq.id, toast).catch(() => undefined);
   } catch (e) {
     console.error("callback failed", e);
     await answerCallbackQuery(env, cq.id, "Error").catch(() => undefined);
   }
 }
 
-async function sendSymbolCard(
+async function renderSymbolScreen(
   env: Env,
-  chatId: string | number,
+  target: ShowTarget,
+  lang: Lang,
   symbolId: string,
-  extra: Record<string, unknown>,
-  range: ChartRange = "24h",
+  range: ChartRange,
 ): Promise<void> {
   const def = resolveSymbol(symbolId);
   if (!def) return;
@@ -459,14 +607,26 @@ async function sendSymbolCard(
     getDayHighLow(env.DB, def.id),
     getPrice24hAgo(env.DB, def.id),
   ]);
-  await ensureChartPng(env, def.id, range);
-  const chartUrl = chartPublicUrl(env, def.id, range);
-  await replyRich(
-    env,
-    chatId,
-    richSymbolPrice(env, def, row, chartUrl, dayRange, price24h),
-    extra,
+  await ensureChartPng(env, def.id, range).catch((e) =>
+    console.error("ensureChartPng", e),
   );
+  const chartUrl = chartPublicUrl(env, def.id, range);
+  await showScreen(
+    env,
+    target,
+    screenSymbolCard(env, lang, def, row, chartUrl, dayRange, price24h, range),
+  );
+}
+
+async function sendSymbolCard(
+  env: Env,
+  chatId: string | number,
+  symbolId: string,
+  lang: Lang,
+  target: ShowTarget,
+  range: ChartRange = "24h",
+): Promise<void> {
+  await renderSymbolScreen(env, { ...target, chatId }, lang, symbolId, range);
 }
 
 function tryMultiSymbols(text: string): string[] | null {
@@ -487,9 +647,11 @@ async function priceOf(env: Env, symbolId: string): Promise<number | null> {
   return row?.price ?? null;
 }
 
-/** Strip @BotUsername from a guest/summon message → remaining query. */
 function extractGuestQuery(text: string, botUsername: string): string {
-  const re = new RegExp(`@${botUsername.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+  const re = new RegExp(
+    `@${botUsername.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+    "gi",
+  );
   return text.replace(re, " ").replace(/\s+/g, " ").trim();
 }
 
@@ -507,7 +669,7 @@ function guestHelpArticle(env: Env): Record<string, unknown> {
         `<code>@${escapeHtml(env.BOT_USERNAME)} USD</code>`,
         `<code>@${escapeHtml(env.BOT_USERNAME)} 10 USDT + 5 EUR</code>`,
         ``,
-        `DM me for charts anytime · /help`,
+        `DM me for charts anytime · /start`,
         `📣 @${escapeHtml(env.CHANNEL_USERNAME)}`,
       ].join("\n"),
       parse_mode: "HTML",
@@ -566,13 +728,10 @@ async function buildCalcInlineResult(
   };
 }
 
-async function buildSymbolGuestResult(
+async function buildSymbolInlineResult(
   env: Env,
-  symbolRaw: string,
-): Promise<Record<string, unknown> | null> {
-  const def = resolveSymbol(symbolRaw);
-  if (!def) return null;
-
+  def: SymbolDef,
+): Promise<Record<string, unknown>> {
   const row = await getLatest(env.DB, def.id);
   const [dayRange, price24h] = await Promise.all([
     getDayHighLow(env.DB, def.id),
@@ -581,37 +740,39 @@ async function buildSymbolGuestResult(
   const unit = "IRT";
   const price = row ? formatPrice(row.price) : "—";
   const delta = row ? formatDelta(row.price, row.prev_price) : "n/a";
+  const when = row ? formatTimeTehran(row.updated_at) : "—";
 
-  // Warm PNG + embed chart URL in a rich guest result
   try {
     await ensureChartPng(env, def.id);
   } catch (e) {
-    console.error("guest ensureChartPng", e);
+    console.error("inline ensureChartPng", e);
   }
   const chartUrl = chartPublicUrl(env, def.id);
   const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h);
 
-  // Prefer InputRichMessageContent so guest replies get the same single-message UI
   return {
     type: "article",
-    id: `guest-${def.id}`,
+    id: def.id,
     title: `${def.emoji} ${def.id} · ${price} ${unit}`,
-    description: `${def.name} · ${delta}`,
+    description: `${def.name} · ${delta} · ${when}`,
     input_message_content: {
       rich_message: {
         html: richHtml,
-        // false → native $USD cashtags
         skip_entity_detection: false,
       },
     },
   };
 }
 
-/**
- * Guest Mode handler.
- * User: "@DollarChandeBot USD" or "@DollarChandeBot 10 USDT + 5 EUR" in any chat.
- * Bot replies via answerGuestQuery (as the bot, in that chat).
- */
+async function buildSymbolGuestResult(
+  env: Env,
+  symbolRaw: string,
+): Promise<Record<string, unknown> | null> {
+  const def = resolveSymbol(symbolRaw);
+  if (!def) return null;
+  return buildSymbolInlineResult(env, def);
+}
+
 async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
   if (!msg.guest_query_id) {
     console.error("guest_message missing guest_query_id");
@@ -634,22 +795,31 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
       result = await buildCalcInlineResult(env, query);
     } else {
       const symbolResult = await buildSymbolGuestResult(env, query);
-      result = symbolResult ?? {
-        type: "article",
-        id: "guest-unknown",
-        title: "Unknown symbol",
-        description: query,
-        input_message_content: {
-          message_text: [
-            `❓ Unknown: <code>${escapeHtml(normalizeSymbolQuery(query) || query)}</code>`,
-            ``,
-            `Try <code>@${escapeHtml(env.BOT_USERNAME)} USD</code>`,
-            `or <code>@${escapeHtml(env.BOT_USERNAME)} 10 USDT + 5 EUR</code>`,
-          ].join("\n"),
-          parse_mode: "HTML",
-          disable_web_page_preview: true,
-        },
-      };
+      if (symbolResult) {
+        result = symbolResult;
+      } else {
+        const hits = searchSymbols(query, 1);
+        if (hits[0]) {
+          result = await buildSymbolInlineResult(env, hits[0]);
+        } else {
+          result = {
+            type: "article",
+            id: "guest-unknown",
+            title: "Unknown symbol",
+            description: query,
+            input_message_content: {
+              message_text: [
+                `❓ Unknown: <code>${escapeHtml(normalizeSymbolQuery(query) || query)}</code>`,
+                ``,
+                `Try <code>@${escapeHtml(env.BOT_USERNAME)} USD</code>`,
+                `or <code>@${escapeHtml(env.BOT_USERNAME)} 10 USDT + 5 EUR</code>`,
+              ].join("\n"),
+              parse_mode: "HTML",
+              disable_web_page_preview: true,
+            },
+          };
+        }
+      }
     }
 
     await answerGuestQuery(env, msg.guest_query_id, result);
@@ -696,62 +866,30 @@ async function replyCalc(
   await replyRich(env, chatId, richCalc(env, evaluated.result), extra);
 }
 
-async function handleInlineCalc(env: Env, inlineQueryId: string, query: string): Promise<boolean> {
-  if (!looksLikeCalc(query)) return false;
-  const result = await buildCalcInlineResult(env, query);
-  await answerInlineQuery(env, inlineQueryId, [result], ttlUntilNext5m());
-  return true;
-}
-
-async function handleInline(env: Env, inlineQueryId: string, query: string): Promise<void> {
+async function handleInline(
+  env: Env,
+  inlineQueryId: string,
+  query: string,
+): Promise<void> {
   const q = query.trim();
 
-  // Calculator: "10 USDT + 5 EUR" → total IRT
-  if (await handleInlineCalc(env, inlineQueryId, q)) return;
+  if (looksLikeCalc(q)) {
+    const result = await buildCalcInlineResult(env, q);
+    await answerInlineQuery(env, inlineQueryId, [result], ttlUntilNext5m());
+    return;
+  }
 
-  const def = q ? resolveSymbol(q) : resolveSymbol("USD");
-
-  if (!def) {
+  const matches = searchSymbols(q, 8);
+  if (!matches.length) {
     await answerInlineQuery(env, inlineQueryId, [], 30);
     return;
   }
 
-  const row = await getLatest(env.DB, def.id);
-  const unit = env.PRICE_UNIT || "Toman";
-  const price = row ? formatPrice(row.price) : "—";
-  const delta = row ? formatDelta(row.price, row.prev_price) : "n/a";
-  const when = row ? formatTimeTehran(row.updated_at) : "—";
-
   const inlineTtl = ttlUntilNext5m();
-  const [dayRange, price24h] = await Promise.all([
-    getDayHighLow(env.DB, def.id),
-    getPrice24hAgo(env.DB, def.id),
-  ]);
-  try {
-    await ensureChartPng(env, def.id);
-  } catch (e) {
-    console.error("inline ensureChartPng", e);
-  }
-  const chartUrl = chartPublicUrl(env, def.id);
-  const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h);
-
-  await answerInlineQuery(
-    env,
-    inlineQueryId,
-    [
-      {
-        type: "article",
-        id: def.id,
-        title: `${def.emoji} ${def.id} · ${price} ${unit}`,
-        description: `${def.name} · ${delta} · ${when}`,
-        input_message_content: {
-          rich_message: {
-            html: richHtml,
-            skip_entity_detection: false,
-          },
-        },
-      },
-    ],
-    inlineTtl,
+  // Warm charts in parallel; build results
+  const results = await Promise.all(
+    matches.map((def) => buildSymbolInlineResult(env, def)),
   );
+
+  await answerInlineQuery(env, inlineQueryId, results, inlineTtl);
 }

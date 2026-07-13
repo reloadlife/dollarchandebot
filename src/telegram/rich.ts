@@ -29,50 +29,20 @@ function fmtAmt(n: number): string {
 export function richStart(env: Env, lang: Lang = "en"): string {
   if (lang === "fa") {
     return `
-<h2>👋 به Dollar Chande خوش اومدی</h2>
-<p>نرخ <b>بازار آزاد</b> به <b>تومان</b> + نمودار ۲۴ ساعته.</p>
-
-<h3>شروع سریع</h3>
-<ul>
-<li>یک نماد بفرست — <code>USD</code>، <code>$USD</code> یا <code>/USD</code></li>
-<li><b>اینلاین</b>: <code>${botAt(env)} USD</code> در هر چت</li>
-<li><b>مهمان</b>: منشن کن <code>${botAt(env)} USD</code> حتی اگر عضو چت نباشم</li>
-<li><b>ماشین‌حساب</b>: <code>10 USDT + 5 EUR</code></li>
-</ul>
-
-<h3>دستورات پرکاربرد</h3>
-<ul>
-<li><code>/help</code> — راهنما</li>
-<li><code>/symbols</code> — لیست نمادها</li>
-<li><code>/exchanges</code> — تتر صرافی‌ها</li>
-<li><code>/settings</code> — زبان و کارمزد</li>
-</ul>
-
-<p>${em("channel")} کانال: <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+<h2>👋 Dollar Chande</h2>
+<p>نرخ <b>بازار آزاد</b> به <b>تومان</b> · نمودار · هشدار · ماشین‌حساب</p>
+<p>از دکمه‌ها برو، یا بفرست <code>USD</code> / <code>10 USDT + 5%</code></p>
+<p><i>جستجو · مرور نماد · صرافی‌ها · هشدارها</i></p>
+<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
   }
 
   return `
-<h2>👋 Welcome to Dollar Chande</h2>
-<p>Live <b>free-market</b> rates in <b>Toman</b> + a clean 24h chart.</p>
-
-<h3>Get started</h3>
-<ul>
-<li>Send a symbol — <code>USD</code>, <code>$USD</code>, or <code>/USD</code></li>
-<li><b>Inline</b>: <code>${botAt(env)} USD</code> in any chat</li>
-<li><b>Guest</b>: mention <code>${botAt(env)} USD</code> even if I’m not in the chat</li>
-<li><b>Calculator</b>: <code>10 USDT + 5 EUR</code> → total in Toman</li>
-</ul>
-
-<h3>Handy commands</h3>
-<ul>
-<li><code>/help</code> — full guide</li>
-<li><code>/symbols</code> — all symbols</li>
-<li><code>/exchanges</code> — USDT by exchange</li>
-<li><code>/settings</code> — language &amp; fee</li>
-</ul>
-
-<p>${em("channel")} Channel: <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+<h2>👋 Dollar Chande</h2>
+<p>Live <b>free-market</b> rates in <b>Toman</b> · charts · alerts · calc</p>
+<p>Use the buttons, or type <code>USD</code> / <code>10 USDT + 5%</code></p>
+<p><i>Search · browse · exchanges · alerts</i></p>
+<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
@@ -82,10 +52,12 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <h2>ℹ️ راهنما · Dollar Chande</h2>
 <p>ارز، طلا، سکه و <b>تتر چندصرافی</b> · نمودار · ماشین‌حساب · هشدار.</p>
 
-<h3>قیمت</h3>
+<h3>قیمت و منو</h3>
 <ul>
+<li><code>/start</code> — خانه (دکمه‌ها)</li>
 <li><code>USD</code> / <code>$USDT</code> — کارت + نمودار ۲۴س</li>
 <li><code>USD 7d</code> یا <code>/7d USD</code> — نمودار ۷روزه</li>
+<li><code>/symbols</code> — مرور دسته‌ای · <code>/symbols all</code> لیست متنی</li>
 <li><code>USD USDT EUR</code> — چند نماد یک‌جا</li>
 <li><code>/compare USD USDT</code> — اختلاف</li>
 <li><code>/exchanges</code> — خرید/فروش تتر در صرافی‌ها</li>
@@ -100,12 +72,23 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <li><code>/fee 2</code> — کارمزد پیش‌فرض</li>
 </ul>
 
-<h3>هشدار و تنظیمات</h3>
+<h3>هشدار قیمت</h3>
+<p><b>یک‌بار</b> (پیش‌فرض) — یک اعلان، بعد حذف می‌شود.</p>
+<p><b>تکراری</b> (<code>every</code>) — دوباره فقط بعد از برگشت قیمت از آستانه.</p>
 <ul>
-<li><code>/alert USD above 180000</code></li>
-<li><code>/alert USDT move 2</code></li>
-<li><code>/alerts</code> · <code>/unalert 3</code></li>
-<li><code>/lang fa</code> · <code>/lang en</code> · <code>/settings</code></li>
+<li><code>/alert USD above 180000</code> — یک‌بار، وقتی ≥ آستانه</li>
+<li><code>/alert USD below 170000</code> — یک‌بار، وقتی ≤ آستانه</li>
+<li><code>/alert USD above 180000 every</code> — تکراری (بدون اسپم)</li>
+<li><code>/alert USDT move 2</code> — یک‌بار، حرکت ≥٪۲</li>
+<li><code>/alert USDT move 2 every</code> — هر بار حرکت ≥٪۲ از آخرین اعلان</li>
+<li><code>/alerts</code> — لیست · <code>/unalert 3</code> — حذف</li>
+</ul>
+<p><i>حداکثر ۱۰ هشدار · کلیدواژه‌های تکراری: every / repeat / multi</i></p>
+
+<h3>تنظیمات</h3>
+<ul>
+<li><code>/lang fa</code> · <code>/lang en</code></li>
+<li><code>/settings</code> — زبان و کارمزد</li>
 </ul>
 
 <h3>بیشتر</h3>
@@ -123,10 +106,12 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <h2>ℹ️ Help · Dollar Chande</h2>
 <p>Free-market FX, gold, coins &amp; multi-exchange <b>USDT</b> · charts · calc · alerts.</p>
 
-<h3>Prices</h3>
+<h3>Prices &amp; menu</h3>
 <ul>
+<li><code>/start</code> — home (buttons)</li>
 <li><code>USD</code> / <code>$USDT</code> — card + 24h chart</li>
 <li><code>USD 7d</code> or <code>/7d USD</code> — 7-day chart</li>
+<li><code>/symbols</code> — browse by category · <code>/symbols all</code> text list</li>
 <li><code>USD USDT EUR</code> — multi snapshot</li>
 <li><code>/compare USD USDT</code> — spread</li>
 <li><code>/exchanges</code> — USDT buy/sell by exchange</li>
@@ -141,12 +126,23 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <li><code>/fee 2</code> — default fee for calc</li>
 </ul>
 
-<h3>Alerts &amp; settings</h3>
+<h3>Price alerts</h3>
+<p><b>once</b> (default) — notify once, then the alert is removed.</p>
+<p><b>every</b> — can fire again only after the price clears the threshold (no spam while it stays past the line).</p>
 <ul>
-<li><code>/alert USD above 180000</code></li>
-<li><code>/alert USDT move 2</code></li>
-<li><code>/alerts</code> · <code>/unalert 3</code></li>
-<li><code>/lang en|fa</code> · <code>/settings</code></li>
+<li><code>/alert USD above 180000</code> — once, when ≥ threshold</li>
+<li><code>/alert USD below 170000</code> — once, when ≤ threshold</li>
+<li><code>/alert USD above 180000 every</code> — repeat after clear</li>
+<li><code>/alert USDT move 2</code> — once, on ≥2% move</li>
+<li><code>/alert USDT move 2 every</code> — each new ≥2% leg from last fire</li>
+<li><code>/alerts</code> — list · <code>/unalert 3</code> — delete</li>
+</ul>
+<p><i>Max 10 alerts · repeat keywords: every / repeat / multi</i></p>
+
+<h3>Settings</h3>
+<ul>
+<li><code>/lang en</code> · <code>/lang fa</code></li>
+<li><code>/settings</code> — language &amp; fee</li>
 </ul>
 
 <h3>Also</h3>
@@ -237,7 +233,8 @@ export function richSettings(
 <h2>${em("sparkle")} تنظیمات</h2>
 <p>زبان: <b>fa</b> → <code>/lang en</code></p>
 <p>کارمزد پیش‌فرض: <b>${feePct}%</b> → <code>/fee 2</code></p>
-<p>هشدار: <code>/alert</code> · <code>/alerts</code></p>
+<p>هشدار: <code>/alert USD above 180000</code> · <code>every</code> = تکراری</p>
+<p>لیست: <code>/alerts</code> · حذف: <code>/unalert ID</code></p>
 <p>تتر صرافی‌ها: <code>/exchanges</code></p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -246,7 +243,8 @@ export function richSettings(
 <h2>${em("sparkle")} Settings</h2>
 <p>Language: <b>${lang}</b> → <code>/lang fa</code> · <code>/lang en</code></p>
 <p>Default fee: <b>${feePct}%</b> → <code>/fee 2</code></p>
-<p>Alerts: <code>/alert</code> · <code>/alerts</code></p>
+<p>Alerts: <code>/alert USD above 180000</code> · add <code>every</code> to repeat</p>
+<p>List: <code>/alerts</code> · remove: <code>/unalert ID</code></p>
 <p>USDT exchanges: <code>/exchanges</code></p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -519,47 +517,4 @@ ${chartBlock}
 `.trim();
 }
 
-export function startKeyboard(env: Env, lang: Lang = "en"): Record<string, unknown> {
-  if (lang === "fa") {
-    return {
-      inline_keyboard: [
-        [
-          { text: "💲 دلار USD", switch_inline_query_current_chat: "USD" },
-          { text: "💰 تتر USDT", switch_inline_query_current_chat: "USDT" },
-        ],
-        [
-          { text: "📋 نمادها", callback_data: "menu:symbols" },
-          { text: "🏦 صرافی‌ها", callback_data: "menu:exchanges" },
-        ],
-        [
-          { text: "🇬🇧 English", callback_data: "menu:lang_en" },
-          { text: "ℹ️ راهنما", callback_data: "menu:help" },
-        ],
-        [
-          { text: "🔎 اینلاین…", switch_inline_query: "USD" },
-          { text: "📣 کانال", url: channelUrl(env) },
-        ],
-      ],
-    };
-  }
-  return {
-    inline_keyboard: [
-      [
-        { text: "💲 Try USD", switch_inline_query_current_chat: "USD" },
-        { text: "💰 Try USDT", switch_inline_query_current_chat: "USDT" },
-      ],
-      [
-        { text: "📋 Symbols", callback_data: "menu:symbols" },
-        { text: "🏦 Exchanges", callback_data: "menu:exchanges" },
-      ],
-      [
-        { text: "🇮🇷 فارسی", callback_data: "menu:lang_fa" },
-        { text: "ℹ️ Help", callback_data: "menu:help" },
-      ],
-      [
-        { text: "🔎 Use inline…", switch_inline_query: "USD" },
-        { text: "📣 Channel", url: channelUrl(env) },
-      ],
-    ],
-  };
-}
+

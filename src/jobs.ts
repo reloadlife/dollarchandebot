@@ -98,10 +98,14 @@ async function fireAlerts(env: Env): Promise<void> {
         : a.direction === "below"
           ? `≤ ${a.threshold}`
           : `moved ≥ ${a.threshold}%`;
+    const modeNote =
+      a.mode === "once"
+        ? "\n<i>one-time · removed</i>"
+        : "\n<i>every · re-arms when condition clears</i>";
     await sendMessage(
       env,
       a.chat_id,
-      `🔔 <b>Alert #${a.id}</b> <code>${a.symbol}</code>\nPrice <b>${a.price.toLocaleString("en-US")}</b> IRT (${dir})`,
+      `🔔 <b>Alert #${a.id}</b> <code>${a.symbol}</code>\nPrice <b>${a.price.toLocaleString("en-US")}</b> IRT (${dir})${modeNote}`,
     ).catch((e) => console.error("alert send", e));
   }
 }

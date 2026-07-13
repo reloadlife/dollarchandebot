@@ -114,6 +114,55 @@ export async function sendRichMessage(
   });
 }
 
+/**
+ * Edit a rich (or plain) message in place.
+ * Bot API 10.1+: pass rich_message on editMessageText.
+ * Ignores "message is not modified" so double-taps are quiet.
+ */
+export async function editRichMessage(
+  env: Env,
+  chatId: string | number,
+  messageId: number,
+  html: string,
+  extra: Record<string, unknown> = {},
+  richOpts: { skipEntityDetection?: boolean } = {},
+): Promise<{ message_id: number } | true> {
+  try {
+    return await call(env, "editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      rich_message: {
+        html,
+        skip_entity_detection: richOpts.skipEntityDetection ?? false,
+      },
+      ...extra,
+    });
+  } catch (e) {
+    const msg = e instanceof TelegramError ? e.message : String(e);
+    if (/not modified/i.test(msg)) return true;
+    throw e;
+  }
+}
+
+export async function editMessageReplyMarkup(
+  env: Env,
+  chatId: string | number,
+  messageId: number,
+  replyMarkup: Record<string, unknown> | null = null,
+): Promise<true> {
+  try {
+    return await call(env, "editMessageReplyMarkup", {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: replyMarkup ?? { inline_keyboard: [] },
+    });
+  } catch (e) {
+    const msg = e instanceof TelegramError ? e.message : String(e);
+    if (/not modified/i.test(msg)) return true;
+    throw e;
+  }
+}
+
 export async function answerInlineQuery(
   env: Env,
   inlineQueryId: string,

@@ -13,27 +13,27 @@ export interface BotCommand {
 
 /** Primary menu — keep short; full list lives in /help */
 export const COMMANDS_EN: BotCommand[] = [
-  { command: "start", description: "Welcome & quick start" },
+  { command: "start", description: "Home · browse · alerts" },
   { command: "help", description: "How to use the bot" },
-  { command: "symbols", description: "Full symbol list" },
+  { command: "symbols", description: "Browse symbols by category" },
   { command: "exchanges", description: "USDT buy/sell by exchange" },
   { command: "compare", description: "Compare two symbols" },
   { command: "history", description: "7-day OHLC history" },
-  { command: "alert", description: "Set a price alert" },
-  { command: "alerts", description: "List your alerts" },
+  { command: "alert", description: "Price alert (once or every)" },
+  { command: "alerts", description: "Your alerts (tap to manage)" },
   { command: "settings", description: "Language & default fee" },
   { command: "calc", description: "Currency calculator" },
 ];
 
 export const COMMANDS_FA: BotCommand[] = [
-  { command: "start", description: "شروع و خوش‌آمد" },
+  { command: "start", description: "خانه · مرور · هشدار" },
   { command: "help", description: "راهنمای کامل" },
-  { command: "symbols", description: "لیست نمادها" },
+  { command: "symbols", description: "مرور نمادها بر اساس دسته" },
   { command: "exchanges", description: "قیمت تتر در صرافی‌ها" },
   { command: "compare", description: "مقایسه دو نماد" },
   { command: "history", description: "تاریخچه ۷ روزه" },
-  { command: "alert", description: "تنظیم هشدار قیمت" },
-  { command: "alerts", description: "لیست هشدارها" },
+  { command: "alert", description: "هشدار قیمت (یک‌بار یا تکراری)" },
+  { command: "alerts", description: "هشدارها (مدیریت با دکمه)" },
   { command: "settings", description: "زبان و کارمزد" },
   { command: "calc", description: "ماشین‌حساب ارز" },
 ];
