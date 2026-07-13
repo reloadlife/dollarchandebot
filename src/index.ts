@@ -8,6 +8,22 @@ import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
 
+/** Bump to push a new setMyCommands list on next cron. */
+const BOT_MENU_VER = "2026-07-13-hub-ui";
+const BOT_MENU_KV = "bot:menu_ver";
+
+async function ensureBotMenu(env: Env): Promise<void> {
+  try {
+    const cur = await env.CACHE.get(BOT_MENU_KV);
+    if (cur === BOT_MENU_VER) return;
+    await setupBotMenu(env);
+    await env.CACHE.put(BOT_MENU_KV, BOT_MENU_VER);
+    console.log("bot menu updated", BOT_MENU_VER);
+  } catch (e) {
+    console.error("ensureBotMenu", e);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -179,6 +195,8 @@ export default {
    */
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const at = typeof event.scheduledTime === "number" ? event.scheduledTime : Date.now();
+    // Re-register slash command list when version bumps (no host-side secrets needed)
+    ctx.waitUntil(ensureBotMenu(env));
     ctx.waitUntil(
       env.JOBS.send({ type: "scrape_and_cast", at }).catch(async (e) => {
         // local dev without queue binding: run inline
