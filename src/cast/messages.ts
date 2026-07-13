@@ -18,17 +18,20 @@ function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
 }
 
-/** Compact ticker labels for channel FX board (hybrid v2). */
+/**
+ * Channel FX board — plain ISO codes (readable).
+ * Weird $€₣₺₮ prefixes were hard to scan in monospace.
+ */
 const FX_TICKER: Array<{ id: string; label: string }> = [
-  { id: "USD", label: "$USD" },
-  { id: "EUR", label: "€EUR" },
-  { id: "GBP", label: "£GBP" },
-  { id: "CHF", label: "₣CHF" },
-  { id: "CAD", label: "C$CAD" },
-  { id: "TRY", label: "₺TRY" },
-  { id: "KWD", label: "KD KWD" },
-  { id: "BHD", label: ".BD BHD" },
-  { id: "USDT", label: "₮USDT" },
+  { id: "USD", label: "USD" },
+  { id: "EUR", label: "EUR" },
+  { id: "GBP", label: "GBP" },
+  { id: "CHF", label: "CHF" },
+  { id: "CAD", label: "CAD" },
+  { id: "TRY", label: "TRY" },
+  { id: "KWD", label: "KWD" },
+  { id: "BHD", label: "BHD" },
+  { id: "USDT", label: "USDT" },
 ];
 
 const GOLD_IDS = ["MITHQAL", "GOLD18"] as const;
@@ -73,9 +76,17 @@ function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string
 }
 
 function tickerLine(label: string, price: number | undefined): string {
-  const lab = label.padEnd(8, " ");
-  const val = price != null ? formatPrice(price).padStart(10, " ") : "—".padStart(10, " ");
-  return `${lab} ${val}`;
+  const lab = label.padEnd(4, " ");
+  const val = price != null ? formatPrice(price).padStart(12, " ") : "—".padStart(12, " ");
+  return `${lab}  ${val}`;
+}
+
+/** Signed spread, e.g. +850 or −50 */
+function formatSignedSpread(n: number): string {
+  const abs = formatPrice(Math.abs(n));
+  if (n > 0) return `+${abs}`;
+  if (n < 0) return `−${abs}`;
+  return "0";
 }
 
 function usdtArbLines(exchanges: ExchangeRow[]): string[] {
@@ -170,7 +181,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   ];
 
   if (usdtUsd != null) {
-    out.push(`<i>₮−$ · ${formatPrice(usdtUsd)}</i>`);
+    out.push(`<i>USDT − USD · ${formatSignedSpread(usdtUsd)}</i>`);
   }
 
   out.push("", "🥇 <b>GOLD</b>", ...goldLines, "", "🪙 <b>COINS</b>", `  ${coinsLine1}`, `  ${coinsLine2}`);
