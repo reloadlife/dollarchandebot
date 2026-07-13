@@ -65,11 +65,10 @@ const DESC_FA = [
 
 /** language_code for setMyCommands / descriptions. Empty = default (fallback). */
 const LOCALES: Array<{ code?: string; commands: BotCommand[]; short: string; desc: string }> = [
-  { commands: COMMANDS_EN, short: SHORT_EN, desc: DESC_EN }, // default
+  { commands: COMMANDS_EN, short: SHORT_EN, desc: DESC_EN }, // default fallback
   { code: "en", commands: COMMANDS_EN, short: SHORT_EN, desc: DESC_EN },
   { code: "fa", commands: COMMANDS_FA, short: SHORT_FA, desc: DESC_FA },
-  // Persian users sometimes report "fa-IR"
-  { code: "fa-IR", commands: COMMANDS_FA, short: SHORT_FA, desc: DESC_FA },
+  // Note: Telegram language_code is ISO 639-1 (e.g. "fa"), not "fa-IR"
 ];
 
 export async function setupBotMenu(env: Env): Promise<{ ok: true; locales: string[] }> {
