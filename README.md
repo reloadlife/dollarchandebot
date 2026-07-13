@@ -20,9 +20,9 @@ Built to be **cheap as hell** on Cloudflare free tier:
 - [Tetherland API](https://service.tetherland.com/api/v5/currencies) — USDT (Toman)
 
 **Channel schedule** (Asia/Tehran)
-- Every **15 minutes** — price list (scrape first, then post)
-- Every **6 hours** (00/06/12/18) — charts for USD, USDT, EUR, GOLD18, EMAMI
-- Daily **09:00** — charts + OHLC summary
+- Every **~10 minutes** — price list (scrape first, then post; last-cast KV so delayed cron still posts)
+- Every **~6 hours** — charts for USD, USDT, EUR, GOLD18, EMAMI
+- Daily **~09:00** — charts + OHLC summary
 
 **Bot**
 - Text: `USD` / `/eur` → 24h chart image + price

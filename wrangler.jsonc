@@ -51,8 +51,8 @@
     ]
   },
 
-  // Every 5m: scrape (+ tick). Channel list still every 15m in jobs.
-  // Consumer decides 6h chart / daily OHLC from the clock.
+  // Every 5m: scrape (+ tick). Channel list ~every 10m via last-cast KV
+  // (not wall-clock minute%N — CF cron is often 1–3m late).
   "triggers": {
     "crons": ["*/5 * * * *"]
   },

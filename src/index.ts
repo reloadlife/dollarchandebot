@@ -160,13 +160,18 @@ export default {
     );
   },
 
-  /** Cron: every 5 minutes → enqueue scrape (+ list cast on 15m marks). */
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+  /**
+   * Cron: every 5 minutes → enqueue scrape.
+   * List cast is due every ~10m (see jobs.ts last-cast KV), not wall-clock % 15
+   * (Cloudflare cron often fires 1–3m late, which skipped every list post).
+   */
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    const at = typeof event.scheduledTime === "number" ? event.scheduledTime : Date.now();
     ctx.waitUntil(
-      env.JOBS.send({ type: "scrape_and_cast", at: Date.now() }).catch(async (e) => {
+      env.JOBS.send({ type: "scrape_and_cast", at }).catch(async (e) => {
         // local dev without queue binding: run inline
         console.error("queue send failed, inline", e);
-        await runScrapeAndCast(env);
+        await runScrapeAndCast(env, false, at);
       }),
     );
   },
