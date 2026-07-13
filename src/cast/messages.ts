@@ -11,6 +11,7 @@ import {
   formatPrice,
   formatTimeTehran,
 } from "../lib/format";
+import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { sendMessage, sendPhoto } from "../telegram/api";
 
@@ -71,18 +72,68 @@ function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string
   return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر" };
 }
 
-/** Farsi name + bold price (no monospace — RTL + Latin pad was unreadable). */
-function faPriceLine(name: string, price: number | undefined): string {
+/** Farsi name + bold price + optional tick Δ (same style as طلا). */
+function faPriceLine(
+  name: string,
+  price: number | undefined,
+  prev?: number | null,
+): string {
   if (price == null) return `${escapeHtml(name)}  —`;
-  return `${escapeHtml(name)}  <b>${formatPrice(price)}</b>`;
+  const d = formatDeltaQuiet(price, prev);
+  return `${escapeHtml(name)}  <b>${formatPrice(price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
 }
 
-/** Signed spread, e.g. +850 or −50 */
+/** Signed spread / bubble, e.g. +850 or −50 */
 function formatSignedSpread(n: number): string {
   const abs = formatPrice(Math.abs(n));
   if (n > 0) return `+${abs}`;
   if (n < 0) return `−${abs}`;
   return "0";
+}
+
+/** Compact bubble tag: حباب +12.3M (+7.5%) */
+function formatBubbleTag(bubble: number, pct: number): string {
+  const sign = bubble > 0 ? "+" : bubble < 0 ? "−" : "";
+  const abs = Math.abs(bubble);
+  // shorten millions for channel scan
+  let amount: string;
+  if (abs >= 1_000_000) {
+    amount = `${(abs / 1_000_000).toFixed(1)}M`;
+  } else if (abs >= 1_000) {
+    amount = `${formatPrice(abs / 1_000)}k`;
+  } else {
+    amount = formatPrice(abs);
+  }
+  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
+  return `حباب ${sign}${amount} (${pctStr})`;
+}
+
+function coinSectionLines(map: Map<string, LatestRow>): string[] {
+  const gold18 = map.get("GOLD18")?.price;
+  const lines: string[] = ["🪙 <b>سکه</b>"];
+  if (gold18 == null) {
+    lines.push("  <i>گرم ۱۸ در دسترس نیست — حباب محاسبه نشد</i>");
+  }
+
+  for (const id of COIN_IDS) {
+    const row = map.get(id);
+    const lab = COIN_LABEL[id] ?? id;
+    if (!row) {
+      lines.push(`  ${escapeHtml(lab)}  —`);
+      continue;
+    }
+    const d = formatDeltaQuiet(row.price, row.prev_price);
+    let line = `  ${escapeHtml(lab)}  <b>${formatPrice(row.price)}</b>`;
+    if (d) line += `  ${escapeHtml(d)}`;
+
+    const spec = COIN_SPECS[id];
+    if (spec && gold18 != null && gold18 > 0) {
+      const b = calcCoinBubble(row.price, gold18, spec);
+      line += `  · <i>${escapeHtml(formatBubbleTag(b.bubble, b.bubblePct))}</i>`;
+    }
+    lines.push(line);
+  }
+  return lines;
 }
 
 type ExMid = ExchangeRow & { midN: number; buyN: number | null; sellN: number | null };
@@ -166,9 +217,10 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const ts = newest || Math.floor(Date.now() / 1000);
   const mood = marketMood(map);
 
-  const fxLines = FX_TICKER.map(({ id, label }) =>
-    faPriceLine(label, map.get(id)?.price),
-  );
+  const fxLines = FX_TICKER.map(({ id, label }) => {
+    const row = map.get(id);
+    return faPriceLine(label, row?.price, row?.prev_price);
+  });
 
   const goldLines = GOLD_IDS.map((id) => {
     const row = map.get(id);
@@ -177,15 +229,6 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     const d = formatDeltaQuiet(row.price, row.prev_price);
     return `  ${escapeHtml(lab)}  <b>${formatPrice(row.price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
   });
-
-  const coinParts = COIN_IDS.map((id) => {
-    const row = map.get(id);
-    const lab = COIN_LABEL[id] ?? id;
-    if (!row) return `${escapeHtml(lab)} —`;
-    return `${escapeHtml(lab)} <b>${formatPrice(row.price)}</b>`;
-  });
-  const coinsLine1 = coinParts.slice(0, 2).join(" · ");
-  const coinsLine2 = coinParts.slice(2).join(" · ");
 
   const usd = map.get("USD")?.price;
   const usdt = map.get("USDT")?.price;
@@ -198,9 +241,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     "🥇 <b>طلا</b>",
     ...goldLines,
     "",
-    "🪙 <b>سکه</b>",
-    `  ${coinsLine1}`,
-    `  ${coinsLine2}`,
+    ...coinSectionLines(map),
     "",
     ...usdtSection(usdt, usd, exchanges),
     "",
