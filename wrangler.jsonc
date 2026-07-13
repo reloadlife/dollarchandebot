@@ -1,0 +1,62 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dollarchande",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Pure Worker = free cron + queues + D1. No Pages/static bloat.
+  "workers_dev": true,
+  "preview_urls": false,
+
+  "vars": {
+    "CHANNEL_USERNAME": "AlanDollarChande",
+    "BOT_USERNAME": "DollarChandeBot",
+    // prices shown as Toman (bonbast/tetherland native unit)
+    "PRICE_UNIT": "Toman"
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dollarchande",
+      "database_id": "local-dollarchande",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // 10-minute chart/response cache (file_id + JSON). Free KV is plenty.
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "local-cache",
+      "preview_id": "local-cache-preview"
+    }
+  ],
+
+  "queues": {
+    "producers": [
+      { "binding": "JOBS", "queue": "dollarchande-jobs" }
+    ],
+    "consumers": [
+      {
+        "queue": "dollarchande-jobs",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "dollarchande-jobs-dlq"
+      }
+    ]
+  },
+
+  // Every 15m: scrape + price list cast.
+  // Consumer decides 6h chart / daily OHLC from the clock.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  }
+}

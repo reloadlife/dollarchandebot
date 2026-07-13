@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local wrangler dev
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF
+# Channel numeric id (preferred) or @AlanDollarChande
+TELEGRAM_CHANNEL_ID=@AlanDollarChande
+# Optional: secret token for webhook verification
+TELEGRAM_WEBHOOK_SECRET=change-me
