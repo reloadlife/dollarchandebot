@@ -9,6 +9,8 @@
  * Many OTC shops have no public API — those cannot be scraped.
  */
 
+import { fetchMaybeProxied } from "../lib/proxy";
+
 export interface ExchangeQuote {
   exchange: string;
   name: string;
@@ -65,7 +67,7 @@ function quote(
 }
 
 async function getJson(url: string, init?: RequestInit): Promise<unknown> {
-  const res = await fetch(url, {
+  const res = await fetchMaybeProxied(url, {
     ...init,
     headers: {
       accept: "application/json, text/plain, */*",
@@ -98,7 +100,7 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
 
 /** Same headers as getJson, for the venues that only render prices into HTML. */
 async function getText(url: string): Promise<string> {
-  const res = await fetch(url, {
+  const res = await fetchMaybeProxied(url, {
     headers: {
       accept: "text/html,application/xhtml+xml",
       "user-agent": UA,

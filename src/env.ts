@@ -10,6 +10,9 @@ export interface Env {
   PRICE_UNIT: string;
   /** Public origin for embeddable chart PNGs in rich messages */
   PUBLIC_BASE_URL?: string;
+  /** Optional egress proxy for venues that refuse Cloudflare IPs (see proxy/) */
+  PROXY_URL?: string;
+  PROXY_SECRET?: string;
 }
 
 export type JobType =

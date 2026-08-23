@@ -4,6 +4,7 @@ import { scrapeTetherland } from "./scrape/tetherland";
 import { scrapeAllUsdtExchanges } from "./scrape/exchanges";
 import { probeCandidates } from "./scrape/probe";
 import { scrapeTgjuUsdt } from "./scrape/tgju";
+import { configureProxy, proxyConfigured } from "./lib/proxy";
 import { ingestScrapes, getLatest, type TetherSource } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
@@ -71,6 +72,7 @@ export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null
 }
 
 export async function runScrape(env: Env): Promise<number> {
+  configureProxy(env);
   // One flaky source must not kill the whole scrape+cast pipeline.
   const [bonbastR, tetherR, exchangesR, tgjuR] = await Promise.allSettled([
     scrapeBonbast(),
@@ -121,7 +123,7 @@ export async function runScrape(env: Env): Promise<number> {
     await saveExchangeQuotes(env.DB, exchanges.quotes);
   }
   console.log(
-    "exchanges ok:",
+    proxyConfigured() ? "exchanges ok (proxy on):" : "exchanges ok:",
     exchanges.quotes.map((q) => q.exchange).join(",") || "(none)",
   );
   if (exchanges.errors.length) {

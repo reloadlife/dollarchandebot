@@ -3,6 +3,8 @@
  * GET https://service.tetherland.com/api/v5/currencies
  */
 
+import { fetchMaybeProxied } from "../lib/proxy";
+
 const URL = "https://service.tetherland.com/api/v5/currencies";
 
 export interface TetherlandQuote {
@@ -19,7 +21,7 @@ interface CoinRow {
 export async function scrapeTetherland(
   symbols: string[] = ["USDT"],
 ): Promise<TetherlandQuote[]> {
-  const res = await fetch(URL, {
+  const res = await fetchMaybeProxied(URL, {
     headers: {
       accept: "application/json",
       // Self-identifying UA looked like a WAF magnet (504s from CF POPs).
