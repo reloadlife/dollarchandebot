@@ -183,7 +183,9 @@ function usdtSection(
   }
 
   const withMid = normalizeExchanges(exchanges);
-  if (withMid.length) {
+  // One live venue cannot be both the high and the low, and cannot be an
+  // arbitrage route against itself.
+  if (withMid.length >= 2) {
     const hi = withMid.reduce((a, b) => (b.midN > a.midN ? b : a));
     const lo = withMid.reduce((a, b) => (b.midN < a.midN ? b : a));
     lines.push(
@@ -200,7 +202,7 @@ function usdtSection(
       ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
       : null;
 
-    if (cheapBuy?.buyN != null && bestSell?.sellN != null) {
+    if (cheapBuy?.buyN != null && bestSell?.sellN != null && cheapBuy.exchange !== bestSell.exchange) {
       const spread = bestSell.sellN - cheapBuy.buyN;
       lines.push(
         `  آربیتراژ  خرید <b>${escapeHtml(cheapBuy.name)}</b> → فروش <b>${escapeHtml(bestSell.name)}</b> · <b>${formatSignedSpread(spread)}</b>`,
