@@ -199,7 +199,8 @@ export default {
     ctx.waitUntil(ensureBotMenu(env));
     // Reachability probe once an hour, as its own queue message so it gets a
     // fresh subrequest budget instead of eating the scrape's.
-    if (new Date(at).getUTCMinutes() < 5) {
+    // Every 15m while the candidate list is being worked out; drop to hourly after.
+    if (new Date(at).getUTCMinutes() % 15 < 5) {
       ctx.waitUntil(env.JOBS.send({ type: "probe", at }).catch(() => {}));
     }
     ctx.waitUntil(

@@ -47,17 +47,30 @@ const CANDIDATES: Array<{ id: string; url: string }> = [
   { id: "arzinja", url: "https://api.arzinja.com/api/v1/market" },
   { id: "bitmoon", url: "https://api.bitmoon.ir/api/v1/market" },
   { id: "mazdax", url: "https://api.mazdax.ir/market" },
-  { id: "cryptoland", url: "https://cryptoland.market/api/v1/market" },
-  { id: "bitirun", url: "https://bitirun.com/api/v1/market" },
-  { id: "arzex", url: "https://arzex.io/api/v1/market" },
-  { id: "digiarz", url: "https://digiarz.com/api/v1/prices" },
-  { id: "tetherno", url: "https://tetherno.com/api/v1/price" },
 
-  // re-check of currently failing venues under the new headers
-  { id: "recheck_wallex", url: "https://api.wallex.ir/v1/depth?symbol=USDTTMN" },
-  { id: "recheck_nobitex", url: "https://api.nobitex.ir/market/stats" },
-  { id: "recheck_bitpin", url: "https://api.bitpin.ir/v1/mkt/markets/" },
-  { id: "recheck_tetherland", url: "https://service.tetherland.com/api/v5/currencies" },
+  // Path hunting. These hosts answered our scrape with 404/500/HTML, i.e. they
+  // are reachable and our stored endpoint is simply wrong. Cheaper to probe a
+  // few plausible paths in parallel than to guess one at a time in a parser.
+  { id: "tabdeal_a", url: "https://api.tabdeal.org/api/v1/depth/?symbol=USDTIRT" },
+  { id: "tabdeal_b", url: "https://api.tabdeal.org/plots/api/v1/depth/?symbol=USDTIRT" },
+  { id: "abantether_a", url: "https://abantether.com/api/v1/otc/coin-price/?coin=USDT" },
+  { id: "abantether_b", url: "https://api.abantether.com/otc/coin-price?coin=USDT" },
+  { id: "ompfinex_a", url: "https://api.ompfinex.com/v1/market" },
+  { id: "ompfinex_b", url: "https://api.ompfinex.com/api/v1/market" },
+  { id: "bit24_a", url: "https://bit24.cash/api/v1/ticker" },
+  { id: "bit24_b", url: "https://api.bit24.cash/v1/ticker" },
+  { id: "pooleno_a", url: "https://api.pooleno.ir/v1/price" },
+  { id: "pooleno_b", url: "https://pooleno.ir/api/v2/price" },
+  { id: "ubitex_a", url: "https://api.ubitex.io/api/v1/market/getticker?symbol=USDTIRT" },
+  { id: "ubitex_b", url: "https://ubitex.io/api/v1/ticker" },
+  { id: "bitbarg_a", url: "https://api.bitbarg.com/v1/currencies/usdt" },
+  { id: "bitbarg_b", url: "https://bitbarg.com/api/v1/currencies/usdt" },
+  { id: "arzplus_a", url: "https://arzplus.net/api/v1/currencies/usdt" },
+  { id: "arzplus_b", url: "https://api.arzplus.net/api/v1/currencies/usdt" },
+  { id: "sarmayex_a", url: "https://market.sarmayex.com/api/v1/market" },
+  { id: "hamtapay_a", url: "https://api.hamtapay.com/v1/rates" },
+  { id: "bitpin_a", url: "https://api.bitpin.ir/v2/mkt/markets/" },
+  { id: "bitpin_b", url: "https://api.bitpin.org/v1/mkt/markets/" },
 ];
 
 /** Fetch every candidate, return "id status" strings. Never throws. */
