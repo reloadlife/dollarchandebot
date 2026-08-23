@@ -2,6 +2,7 @@ import type { Env, JobMessage } from "./env";
 import { scrapeBonbast } from "./scrape/bonbast";
 import { scrapeTetherland } from "./scrape/tetherland";
 import { scrapeAllUsdtExchanges } from "./scrape/exchanges";
+import { probeCandidates } from "./scrape/probe";
 import { ingestScrapes, getLatest } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
@@ -57,6 +58,9 @@ async function kvPut(env: Env, key: string, value: string): Promise<void> {
   await env.CACHE.put(key, value);
 }
 
+/** Venues required before a derived USDT median is publishable. */
+const USDT_QUORUM = 3;
+
 /** Median of the exchange mids — USDT fallback when tetherland is down. */
 export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null {
   const mids = quotes.map((q) => q.mid).filter((m): m is number => m != null).sort((a, b) => a - b);
@@ -83,8 +87,14 @@ export async function runScrape(env: Env): Promise<number> {
   if (exchangesR.status === "rejected") console.error("scrape exchanges failed", exchangesR.reason);
 
   // Tetherland down → derive USDT from the venue median instead of publishing a stale price.
+  // Quorum of 3: a "median" of one venue is an unverified number, not a market rate.
   if (!tether.length) {
-    const med = medianUsdt(exchanges.quotes);
+    const med = USDT_QUORUM <= exchanges.quotes.filter((q) => q.mid != null).length
+      ? medianUsdt(exchanges.quotes)
+      : null;
+    if (med == null) {
+      console.error("usdt fallback skipped: quorum not met", exchanges.quotes.length, "venues");
+    }
     if (med != null) {
       tether = [{ sourceKey: "USDT", price: med }];
       console.log("usdt fallback: exchange median", med, "from", exchanges.quotes.length, "venues");
@@ -99,8 +109,13 @@ export async function runScrape(env: Env): Promise<number> {
   if (exchanges.quotes.length) {
     await saveExchangeQuotes(env.DB, exchanges.quotes);
   }
+  console.log(
+    "exchanges ok:",
+    exchanges.quotes.map((q) => q.exchange).join(",") || "(none)",
+  );
   if (exchanges.errors.length) {
-    console.log("exchange scrape errors", exchanges.errors.slice(0, 5));
+    // Full list, not a slice — the failure matrix is the whole diagnostic.
+    console.log("exchange scrape errors\n" + exchanges.errors.join("\n"));
   }
 
   // Fire alerts (cheap: one SELECT all alerts)
@@ -220,6 +235,11 @@ export async function handleJob(env: Env, job: JobMessage): Promise<string> {
       await cast6hCharts(env);
       // Manual force does not flip midnight day marker unless daily also ran
       return `cast_6h (${dayKey})`;
+    }
+    case "probe": {
+      const rows = await probeCandidates();
+      console.log("probe:\n" + rows.join("\n"));
+      return `probed ${rows.length}`;
     }
     case "cast_daily": {
       const { dayKey } = tehranParts();

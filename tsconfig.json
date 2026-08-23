@@ -13,5 +13,7 @@
     "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"]
+  "include": ["src/**/*.ts", "worker-configuration.d.ts"],
+  // bun:test types are not in workers-types; tests run under `bun test`
+  "exclude": ["src/**/*.test.ts"]
 }

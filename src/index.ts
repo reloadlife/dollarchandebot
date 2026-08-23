@@ -197,6 +197,11 @@ export default {
     const at = typeof event.scheduledTime === "number" ? event.scheduledTime : Date.now();
     // Re-register slash command list when version bumps (no host-side secrets needed)
     ctx.waitUntil(ensureBotMenu(env));
+    // Reachability probe once an hour, as its own queue message so it gets a
+    // fresh subrequest budget instead of eating the scrape's.
+    if (new Date(at).getUTCMinutes() < 5) {
+      ctx.waitUntil(env.JOBS.send({ type: "probe", at }).catch(() => {}));
+    }
     ctx.waitUntil(
       env.JOBS.send({ type: "scrape_and_cast", at }).catch(async (e) => {
         // local dev without queue binding: run inline

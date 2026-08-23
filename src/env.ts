@@ -16,7 +16,8 @@ export type JobType =
   | "scrape_and_cast"
   | "cast_15m"
   | "cast_6h"
-  | "cast_daily";
+  | "cast_daily"
+  | "probe";
 
 export interface JobMessage {
   type: JobType;

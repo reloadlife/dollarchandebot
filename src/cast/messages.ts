@@ -154,20 +154,28 @@ function normalizeExchanges(exchanges: ExchangeRow[]): ExMid[] {
 /**
  * Dedicated تتر block: mid price, vs دلار, high/low exchange, arb path.
  */
+/** Older than this and the tether quote is history, not a price. */
+const USDT_STALE_SEC = 30 * 60;
+
 function usdtSection(
   usdtMid: number | undefined,
   usdMid: number | undefined,
   exchanges: ExchangeRow[],
+  usdtAgeSec = 0,
 ): string[] {
   const lines: string[] = ["💰 <b>تتر</b>"];
+  const stale = usdtAgeSec > USDT_STALE_SEC;
 
   if (usdtMid != null) {
-    lines.push(`  قیمت  <b>${formatPrice(usdtMid)}</b>`);
+    // Never print a frozen number as if it were current — every USDT source can
+    // be ASN-blocked at once, and silence beats a confidently wrong rate.
+    const note = stale ? `  <i>(قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه پیش)</i>` : "";
+    lines.push(`  قیمت  <b>${formatPrice(usdtMid)}</b>${note}`);
   } else {
     lines.push("  قیمت  —");
   }
 
-  if (usdtMid != null && usdMid != null) {
+  if (usdtMid != null && usdMid != null && !stale) {
     const diff = usdtMid - usdMid;
     const hint =
       diff > 0 ? "تتر گران‌تر از دلار" : diff < 0 ? "تتر ارزان‌تر از دلار" : "هم‌قیمت با دلار";
@@ -231,7 +239,9 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   });
 
   const usd = map.get("USD")?.price;
-  const usdt = map.get("USDT")?.price;
+  const usdtRow = map.get("USDT");
+  const usdt = usdtRow?.price;
+  const usdtAgeSec = usdtRow ? Math.max(0, Math.floor(Date.now() / 1000) - usdtRow.updated_at) : 0;
 
   const out: string[] = [
     `⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان`,
@@ -243,7 +253,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     "",
     ...coinSectionLines(map),
     "",
-    ...usdtSection(usdt, usd, exchanges),
+    ...usdtSection(usdt, usd, exchanges, usdtAgeSec),
     "",
     `📊 ${mood.emoji} <b>${mood.label}</b>`,
     `<i>${escapeHtml(mood.sub)}</i>`,

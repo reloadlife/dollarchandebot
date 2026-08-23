@@ -17,7 +17,10 @@ export interface ExchangeQuote {
   mid: number | null;
 }
 
-const UA = "DollarChande/1.1 (+cloudflare-worker; rates aggregator)";
+// A self-identifying UA is a free WAF trigger. Browser headers cost nothing and
+// clear naive rules — they do NOT beat the ASN-level blocks these venues use.
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 /** USDT in free-market Toman is roughly 50k–500k. Outside → treat as Rial or junk. */
 const TOMAN_MIN = 50_000;
@@ -67,6 +70,16 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
     headers: {
       accept: "application/json, text/plain, */*",
       "user-agent": UA,
+      "accept-language": "fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7",
+      "sec-ch-ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-site",
+      // Same-origin referer: several IR WAFs reject API hits with none.
+      referer: new URL(url).origin + "/",
+      origin: new URL(url).origin,
       ...(init?.headers ?? {}),
     },
   });
@@ -162,7 +175,15 @@ export async function scrapeBitpin(): Promise<ExchangeQuote> {
       }>
     | { results?: unknown[] };
 
-  const list = Array.isArray(body) ? body : [];
+  const results = Array.isArray(body) ? body : (body as { results?: unknown[] }).results;
+  const list = (Array.isArray(results) ? results : []) as Array<{
+    code?: string;
+    currency1_code?: string;
+    currency2_code?: string;
+    price?: string | number;
+    price_info?: { price?: string };
+    top_order_price?: { buy?: string; sell?: string };
+  }>;
   const m =
     list.find((x) => {
       const code = (x.code ?? "").toUpperCase();
@@ -683,7 +704,9 @@ export async function scrapeTetherlandAlt(): Promise<ExchangeQuote> {
     }>;
   };
   const raw = body.data;
-  const list = Array.isArray(raw) ? raw : (raw?.currencies ?? []);
+  const nested = Array.isArray(raw) ? raw : raw?.currencies;
+  // API sometimes answers 200 with `currencies` as an object map, not a list.
+  const list = Array.isArray(nested) ? nested : [];
   const usdt = list.find((r) => (r.symbol ?? "").toUpperCase() === "USDT");
   if (!usdt) throw new Error("tetherland-alt: no USDT");
   const mid = usdt.toman_amount ?? usdt.price;
