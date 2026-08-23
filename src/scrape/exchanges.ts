@@ -238,31 +238,18 @@ export async function scrapeExir(): Promise<ExchangeQuote> {
 
 /** Tabdeal */
 export async function scrapeTabdeal(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api-web.tabdeal.org/r/plots/currency_prices/USDT/",
-    "https://api1.tabdeal.org/r/plots/currency_prices/USDT/",
-    "https://api.tabdeal.org/api/v1/depth/?symbol=USDTIRT",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as {
-        price?: number | string;
-        buy_price?: number | string;
-        sell_price?: number | string;
-        usdt?: { buy?: number; sell?: number; price?: number };
-      };
-      const buy = body.buy_price ?? body.usdt?.buy ?? body.price ?? body.usdt?.price;
-      const sell = body.sell_price ?? body.usdt?.sell ?? body.price ?? body.usdt?.price;
-      return quote("tabdeal", "Tabdeal", buy, sell);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("tabdeal: all endpoints failed");
+  // Only the depth endpoint answers from CF egress; the old plots path 404s.
+  const body = (await getJson("https://api.tabdeal.org/api/v1/depth/?symbol=USDTIRT")) as {
+    asks?: Array<[string, string]>;
+    bids?: Array<[string, string]>;
+  };
+  // Best ask = what you pay to buy, best bid = what you get selling.
+  const sell = body.asks?.[0]?.[0];
+  const buy = body.bids?.[0]?.[0];
+  if (sell == null && buy == null) throw new Error("tabdeal: empty book");
+  return quote("tabdeal", "Tabdeal", buy, sell);
 }
 
-/** Aban Tether — USDT specialist */
 export async function scrapeAbanTether(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.abantether.com/api/v1/manager/otc/ticker",
@@ -324,43 +311,26 @@ export async function scrapeAbanTether(): Promise<ExchangeQuote> {
 
 /** OMPFinex */
 export async function scrapeOmpfinex(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.ompfinex.com/v1/market",
-    "https://api.ompfinex.com/v2/market",
-    "https://www.ompfinex.com/public/api/v1/market",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>>; result?: Array<Record<string, unknown>> };
-      const list = Array.isArray(body)
-        ? body
-        : (body.data ?? body.result ?? []);
-      const m = list.find((x) => {
-        const id = String(x.id ?? x.symbol ?? x.pair ?? x.market ?? "").toUpperCase();
-        return (
-          id.includes("USDT") &&
-          (id.includes("IRT") || id.includes("TMN") || id.includes("IRR") || id.includes("RLS"))
-        );
-      });
-      if (!m) continue;
-      return quote(
-        "ompfinex",
-        "OMPFinex",
-        m.sell ?? m.ask ?? m.best_sell ?? m.price,
-        m.buy ?? m.bid ?? m.best_buy ?? m.price,
-        m.last ?? m.price,
-      );
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("ompfinex: no USDT market");
+  const body = (await getJson("https://api.ompfinex.com/v1/market")) as {
+    data?: Array<{
+      base_currency?: { id?: string };
+      quote_currency?: { id?: string };
+      last_price?: string | number;
+      min_price?: string | number;
+      max_price?: string | number;
+    }>;
+  };
+  // The pair is identified by nested currency objects; `id` is a numeric row id,
+  // which is why the old string match never hit. Prices are Rial (toToman /10s).
+  const m = (body.data ?? []).find(
+    (x) =>
+      (x.base_currency?.id ?? "").toUpperCase() === "USDT" &&
+      ["IRR", "IRT", "TMN", "RLS"].includes((x.quote_currency?.id ?? "").toUpperCase()),
+  );
+  if (!m) throw new Error("ompfinex: no USDT pair");
+  return quote("ompfinex", "OMPFinex", m.last_price, m.last_price, m.last_price);
 }
 
-/** Bit24 */
 export async function scrapeBit24(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.bit24.cash/api/v3/markets",
