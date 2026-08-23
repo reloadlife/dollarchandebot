@@ -74,9 +74,20 @@ const CANDIDATES: Array<{ id: string; url: string }> = [
 ];
 
 /** Fetch every candidate, return "id status" strings. Never throws. */
+/** 34 concurrent fetches starved each other into false 5s timeouts. */
+const BATCH = 6;
+
 export async function probeCandidates(): Promise<string[]> {
+  const out: string[] = [];
+  for (let i = 0; i < CANDIDATES.length; i += BATCH) {
+    out.push(...(await probeBatch(CANDIDATES.slice(i, i + BATCH))));
+  }
+  return out;
+}
+
+async function probeBatch(batch: Array<{ id: string; url: string }>): Promise<string[]> {
   const results = await Promise.all(
-    CANDIDATES.map(async ({ id, url }) => {
+    batch.map(async ({ id, url }) => {
       const t0 = Date.now();
       try {
         const res = await fetch(url, {

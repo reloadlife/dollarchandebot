@@ -241,7 +241,7 @@ export async function scrapeTabdeal(): Promise<ExchangeQuote> {
   const urls = [
     "https://api-web.tabdeal.org/r/plots/currency_prices/USDT/",
     "https://api1.tabdeal.org/r/plots/currency_prices/USDT/",
-    "https://api.tabdeal.org/r/plots/currency_prices/USDT/",
+    "https://api.tabdeal.org/api/v1/depth/?symbol=USDTIRT",
   ];
   let lastErr: unknown;
   for (const url of urls) {

@@ -3,6 +3,7 @@ import { scrapeBonbast } from "./scrape/bonbast";
 import { scrapeTetherland } from "./scrape/tetherland";
 import { scrapeAllUsdtExchanges } from "./scrape/exchanges";
 import { probeCandidates } from "./scrape/probe";
+import { scrapeTgjuUsdt } from "./scrape/tgju";
 import { ingestScrapes, getLatest } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
@@ -71,10 +72,11 @@ export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null
 
 export async function runScrape(env: Env): Promise<number> {
   // One flaky source must not kill the whole scrape+cast pipeline.
-  const [bonbastR, tetherR, exchangesR] = await Promise.allSettled([
+  const [bonbastR, tetherR, exchangesR, tgjuR] = await Promise.allSettled([
     scrapeBonbast(),
     scrapeTetherland(["USDT"]),
     scrapeAllUsdtExchanges(),
+    scrapeTgjuUsdt(),
   ]);
 
   const bonbast = bonbastR.status === "fulfilled" ? bonbastR.value : [];
@@ -85,9 +87,17 @@ export async function runScrape(env: Env): Promise<number> {
   if (bonbastR.status === "rejected") console.error("scrape bonbast failed", bonbastR.reason);
   if (tetherR.status === "rejected") console.error("scrape tetherland failed", tetherR.reason);
   if (exchangesR.status === "rejected") console.error("scrape exchanges failed", exchangesR.reason);
+  if (tgjuR.status === "rejected") console.error("scrape tgju failed", tgjuR.reason);
 
-  // Tetherland down → derive USDT from the venue median instead of publishing a stale price.
-  // Quorum of 3: a "median" of one venue is an unverified number, not a market rate.
+  // USDT source order: tetherland → tgju → venue median. tgju is a single
+  // aggregator quote but a real published one, so it outranks a thin median.
+  if (!tether.length && tgjuR.status === "fulfilled" && tgjuR.value != null) {
+    tether = [{ sourceKey: "USDT", price: tgjuR.value }];
+    console.log("usdt from tgju", tgjuR.value);
+  }
+
+  // Still nothing → derive from the venues, but only with a real quorum:
+  // a "median" of one venue is an unverified number, not a market rate.
   if (!tether.length) {
     const med = USDT_QUORUM <= exchanges.quotes.filter((q) => q.mid != null).length
       ? medianUsdt(exchanges.quotes)
