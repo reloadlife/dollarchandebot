@@ -96,6 +96,30 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
   }
 }
 
+/** Same headers as getJson, for the venues that only render prices into HTML. */
+async function getText(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      accept: "text/html,application/xhtml+xml",
+      "user-agent": UA,
+      "accept-language": "fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7",
+      referer: new URL(url).origin + "/",
+    },
+  });
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw new Error(`${url} → ${res.status}`);
+  }
+  return res.text();
+}
+
+/** Persian/Arabic-Indic digits → ASCII, so "۱۹۷,۷۲۳" parses. */
+function faDigits(s: string): string {
+  return s
+    .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+}
+
 // ─── Scrapers ────────────────────────────────────────────────────────────────
 
 /** Tetherland (aggregator / OTC mid) */
@@ -499,47 +523,6 @@ export async function scrapeSarmayex(): Promise<ExchangeQuote> {
   throw lastErr ?? new Error("sarmayex: failed");
 }
 
-/** Ubitex */
-export async function scrapeUbitex(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.ubitex.io/api/v1/Market/GetMarketStats",
-    "https://api.ubitex.io/api/v1/Market/GetTicker?symbol=USDTIRT",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>> | Record<string, unknown>; result?: unknown };
-      const data = (body as { data?: unknown }).data ?? (body as { result?: unknown }).result ?? body;
-      const list = Array.isArray(data) ? data : [];
-      if (list.length) {
-        const m = list.find((x) => {
-          const s = String(x.symbol ?? x.market ?? x.pair ?? "").toUpperCase();
-          return s.includes("USDT") && (s.includes("IRT") || s.includes("TMN") || s.includes("IRR"));
-        });
-        if (m) {
-          return quote(
-            "ubitex",
-            "Ubitex",
-            m.ask ?? m.sell ?? m.bestAsk ?? m.price,
-            m.bid ?? m.buy ?? m.bestBid ?? m.price,
-            m.last ?? m.price,
-          );
-        }
-      }
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const d = data as Record<string, unknown>;
-        return quote("ubitex", "Ubitex", d.ask ?? d.sell ?? d.price, d.bid ?? d.buy ?? d.price);
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("ubitex: failed");
-}
-
-/** Bitbarg */
 export async function scrapeBitbarg(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.bitbarg.com/api/v1/currencies",
@@ -608,32 +591,6 @@ export async function scrapeSwapWallet(): Promise<ExchangeQuote> {
   throw lastErr ?? new Error("swapwallet: failed");
 }
 
-/** Arzplus */
-export async function scrapeArzplus(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.arzplus.net/api/v1/price/usdt",
-    "https://panel.arzplus.net/api/v1/price/usdt",
-    "https://api.arzplus.net/v1/currencies/usdt",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as Record<string, unknown>;
-      const d = (body.data as Record<string, unknown> | undefined) ?? body;
-      return quote(
-        "arzplus",
-        "Arzplus",
-        d.buy ?? d.buy_price ?? d.ask ?? d.price,
-        d.sell ?? d.sell_price ?? d.bid ?? d.price,
-      );
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("arzplus: failed");
-}
-
-/** Hamtapay */
 export async function scrapeHamtapay(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.hamtapay.com/v1/rates",
@@ -681,6 +638,32 @@ export async function scrapeTetherlandAlt(): Promise<ExchangeQuote> {
   if (!usdt) throw new Error("tetherland-alt: no USDT");
   const mid = usdt.toman_amount ?? usdt.price;
   return quote("tetherland_api", "Tetherland API", mid, mid, mid);
+}
+
+/**
+ * Ubitex — no reachable JSON endpoint, but the homepage server-renders the
+ * price table. Anchored on the USDT icon URL rather than the Tailwind classes,
+ * which change every build; the sanity range is the real guard.
+ */
+export async function scrapeUbitex(): Promise<ExchangeQuote> {
+  const html = await getText("https://ubitex.io/");
+  const at = html.indexOf("icons%2Fusdt.svg");
+  if (at < 0) throw new Error("ubitex: no USDT row");
+  const m = />([\d,]{6,})</.exec(html.slice(at, at + 4000));
+  const raw = m?.[1];
+  if (!raw) throw new Error("ubitex: no price near USDT row");
+  return quote("ubitex", "Ubitex", raw, raw, raw);
+}
+
+/** Arzplus — same story, but the markup is semantic and stable. */
+export async function scrapeArzplus(): Promise<ExchangeQuote> {
+  const html = await getText("https://arzplus.net/");
+  const at = html.indexOf(">USDT</p>");
+  if (at < 0) throw new Error("arzplus: no USDT row");
+  const m = /class="toman">\s*([\u06F0-\u06F9\d,]{6,})/.exec(html.slice(at, at + 1500));
+  if (!m?.[1]) throw new Error("arzplus: no price near USDT row");
+  const raw = faDigits(m[1]);
+  return quote("arzplus", "Arzplus", raw, raw, raw);
 }
 
 // ─── Registry ────────────────────────────────────────────────────────────────

@@ -34,3 +34,34 @@ test("tgju rejects an out-of-range quote instead of publishing it", async () => 
     globalThis.fetch = orig;
   }
 });
+
+import { scrapeUbitex, scrapeArzplus } from "./scrape/exchanges";
+
+function stubHtml(html: string) {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(html, { headers: { "content-type": "text/html" } })) as typeof fetch;
+  return () => {
+    globalThis.fetch = orig;
+  };
+}
+
+test("ubitex price is read from the row anchored on the USDT icon", async () => {
+  const restore = stubHtml(
+    '<img src="/_next/image?url=https%3A%2F%2Fapi.ubitex.io%2Fcdn%2Ficons%2Fusdt.svg&w=64"/>' +
+      '<span>تتر</span><span>USDT</span></div><div class="x">197,985</div><div>$1</div>',
+  );
+  try {
+    expect((await scrapeUbitex()).mid).toBe(197985);
+  } finally {
+    restore();
+  }
+});
+
+test("arzplus price parses persian digits", async () => {
+  const restore = stubHtml('<p class="symbol">USDT</p><div class="price"><p class="toman"> ۱۹۷,۷۲۳ <span>تومان</span></p>');
+  try {
+    expect((await scrapeArzplus()).mid).toBe(197723);
+  } finally {
+    restore();
+  }
+});
