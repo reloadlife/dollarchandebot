@@ -57,12 +57,43 @@ async function kvPut(env: Env, key: string, value: string): Promise<void> {
   await env.CACHE.put(key, value);
 }
 
+/** Median of the exchange mids — USDT fallback when tetherland is down. */
+export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null {
+  const mids = quotes.map((q) => q.mid).filter((m): m is number => m != null).sort((a, b) => a - b);
+  if (!mids.length) return null;
+  const i = mids.length >> 1;
+  return mids.length % 2 ? mids[i]! : Math.round((mids[i - 1]! + mids[i]!) / 2);
+}
+
 export async function runScrape(env: Env): Promise<number> {
-  const [bonbast, tether, exchanges] = await Promise.all([
+  // One flaky source must not kill the whole scrape+cast pipeline.
+  const [bonbastR, tetherR, exchangesR] = await Promise.allSettled([
     scrapeBonbast(),
     scrapeTetherland(["USDT"]),
     scrapeAllUsdtExchanges(),
   ]);
+
+  const bonbast = bonbastR.status === "fulfilled" ? bonbastR.value : [];
+  let tether = tetherR.status === "fulfilled" ? tetherR.value : [];
+  const exchanges =
+    exchangesR.status === "fulfilled" ? exchangesR.value : { quotes: [], errors: [] };
+
+  if (bonbastR.status === "rejected") console.error("scrape bonbast failed", bonbastR.reason);
+  if (tetherR.status === "rejected") console.error("scrape tetherland failed", tetherR.reason);
+  if (exchangesR.status === "rejected") console.error("scrape exchanges failed", exchangesR.reason);
+
+  // Tetherland down → derive USDT from the venue median instead of publishing a stale price.
+  if (!tether.length) {
+    const med = medianUsdt(exchanges.quotes);
+    if (med != null) {
+      tether = [{ sourceKey: "USDT", price: med }];
+      console.log("usdt fallback: exchange median", med, "from", exchanges.quotes.length, "venues");
+    }
+  }
+
+  if (!bonbast.length && !tether.length && !exchanges.quotes.length) {
+    throw new Error("scrape: all sources failed");
+  }
 
   const n = await ingestScrapes(env, bonbast, tether);
   if (exchanges.quotes.length) {

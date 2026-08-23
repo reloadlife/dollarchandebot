@@ -70,7 +70,11 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
       ...(init?.headers ?? {}),
     },
   });
-  if (!res.ok) throw new Error(`${url} → ${res.status}`);
+  if (!res.ok) {
+    // Unread bodies pile up against the concurrent-request limit (19 venues).
+    await res.body?.cancel();
+    throw new Error(`${url} → ${res.status}`);
+  }
   const text = await res.text();
   try {
     return JSON.parse(text) as unknown;

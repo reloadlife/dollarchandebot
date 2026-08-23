@@ -22,7 +22,9 @@ export async function scrapeTetherland(
   const res = await fetch(URL, {
     headers: {
       accept: "application/json",
-      "user-agent": "DollarChande/0.1 (+cloudflare-worker)",
+      // Self-identifying UA looked like a WAF magnet (504s from CF POPs).
+      "user-agent":
+        "Mozilla/5.0 (Linux; Android 13; SM-G981B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
     },
   });
   if (!res.ok) throw new Error(`tetherland ${res.status}`);
