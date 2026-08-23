@@ -93,3 +93,16 @@ test("pooleno reads the schema.org block without buffering the whole page", asyn
     globalThis.fetch = orig;
   }
 });
+
+import { scrapeNobitex } from "./scrape/exchanges";
+
+test("nobitex reads the usdt-rls key and converts rial", async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ stats: { "usdt-rls": { bestSell: "1973790", bestBuy: "1973310", latest: "1973790" } } }))) as typeof fetch;
+  try {
+    expect((await scrapeNobitex()).mid).toBe(197379);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});

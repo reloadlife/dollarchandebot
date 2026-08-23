@@ -173,23 +173,16 @@ export async function scrapeTetherlandExchange(): Promise<ExchangeQuote> {
 
 /** Nobitex — largest IR exchange */
 export async function scrapeNobitex(): Promise<ExchangeQuote> {
-  try {
-    const body = (await getJson("https://api.nobitex.ir/market/stats")) as {
-      stats?: Record<string, { bestSell?: string; bestBuy?: string; latest?: string }>;
-    };
-    const s = body.stats?.USDTIRT ?? body.stats?.usdtirt;
-    if (s) {
-      return quote("nobitex", "Nobitex", s.bestSell, s.bestBuy, s.latest);
-    }
-  } catch {
-    /* fall through */
-  }
-  // orderbook fallback
-  const ob = (await getJson("https://api.nobitex.ir/v2/orderbook/USDTIRT")) as {
-    asks?: Array<[string, string]>;
-    bids?: Array<[string, string]>;
+  // apiv2 answers from CF egress while api.nobitex.ir returns 530, and the key
+  // is "usdt-rls" — not "USDTIRT", which is why the old lookup missed even on
+  // the cycles the request did get through. Prices are Rial; toToman handles it.
+  const body = (await getJson("https://apiv2.nobitex.ir/market/stats")) as {
+    stats?: Record<string, { bestSell?: string; bestBuy?: string; latest?: string }>;
   };
-  return quote("nobitex", "Nobitex", ob.asks?.[0]?.[0], ob.bids?.[0]?.[0]);
+  const stats = body.stats ?? {};
+  const s = stats["usdt-rls"] ?? stats["usdt-irt"] ?? stats.USDTIRT;
+  if (!s) throw new Error("nobitex: no USDT pair");
+  return quote("nobitex", "Nobitex", s.bestBuy, s.bestSell, s.latest);
 }
 
 /** Wallex */
