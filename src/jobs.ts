@@ -4,7 +4,7 @@ import { scrapeTetherland } from "./scrape/tetherland";
 import { scrapeAllUsdtExchanges } from "./scrape/exchanges";
 import { probeCandidates } from "./scrape/probe";
 import { scrapeTgjuUsdt } from "./scrape/tgju";
-import { ingestScrapes, getLatest } from "./db/prices";
+import { ingestScrapes, getLatest, type TetherSource } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
 import { cast6hCharts, castDaily, castPriceList } from "./cast/messages";
@@ -80,7 +80,8 @@ export async function runScrape(env: Env): Promise<number> {
   ]);
 
   const bonbast = bonbastR.status === "fulfilled" ? bonbastR.value : [];
-  let tether = tetherR.status === "fulfilled" ? tetherR.value : [];
+  let tether: Array<{ sourceKey: string; price: number; source?: TetherSource }> =
+    tetherR.status === "fulfilled" ? tetherR.value : [];
   const exchanges =
     exchangesR.status === "fulfilled" ? exchangesR.value : { quotes: [], errors: [] };
 
@@ -92,7 +93,7 @@ export async function runScrape(env: Env): Promise<number> {
   // USDT source order: tetherland → tgju → venue median. tgju is a single
   // aggregator quote but a real published one, so it outranks a thin median.
   if (!tether.length && tgjuR.status === "fulfilled" && tgjuR.value != null) {
-    tether = [{ sourceKey: "USDT", price: tgjuR.value }];
+    tether = [{ sourceKey: "USDT", price: tgjuR.value, source: "tgju" }];
     console.log("usdt from tgju", tgjuR.value);
   }
 
@@ -106,7 +107,7 @@ export async function runScrape(env: Env): Promise<number> {
       console.error("usdt fallback skipped: quorum not met", exchanges.quotes.length, "venues");
     }
     if (med != null) {
-      tether = [{ sourceKey: "USDT", price: med }];
+      tether = [{ sourceKey: "USDT", price: med, source: "venue_median" }];
       console.log("usdt fallback: exchange median", med, "from", exchanges.quotes.length, "venues");
     }
   }

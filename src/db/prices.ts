@@ -215,11 +215,17 @@ export async function getPrice24hAgo(
   return first?.price ?? null;
 }
 
+/**
+ * Who actually produced a USDT price. The tetherland API is only one of three
+ * origins now, so the row has to say which one rather than assume.
+ */
+export type TetherSource = "tetherland" | "tgju" | "venue_median";
+
 /** Map scraped source keys → symbol ids and persist. */
 export async function ingestScrapes(
   env: Env,
   bonbast: Array<{ sourceKey: string; price: number; buy: number | null; sell: number | null }>,
-  tether: Array<{ sourceKey: string; price: number }>,
+  tether: Array<{ sourceKey: string; price: number; source?: TetherSource }>,
 ): Promise<number> {
   const bySourceKey = new Map(SYMBOLS.map((s) => [s.sourceKey.toLowerCase(), s]));
   const quotes: QuoteIn[] = [];
@@ -238,13 +244,15 @@ export async function ingestScrapes(
 
   for (const q of tether) {
     const def = bySourceKey.get(q.sourceKey.toLowerCase()) ?? SYMBOLS.find((s) => s.id === q.sourceKey);
+    // `def.source` is the symbol's pipeline in the registry, not the origin of
+    // this particular quote — that comes from the quote itself.
     if (!def || def.source !== "tetherland") continue;
     quotes.push({
       symbol: def.id,
       price: q.price,
       buy: null,
       sell: null,
-      source: "tetherland",
+      source: q.source ?? "tetherland",
     });
   }
 
