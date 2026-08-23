@@ -115,6 +115,42 @@ async function getText(url: string): Promise<string> {
   return res.text();
 }
 
+/**
+ * Read only the first `maxBytes` of a response and cancel the rest.
+ *
+ * Pooleno's price page is 1.4MB and ignores Range requests, but the data sits
+ * in a JSON-LD block ~3KB in. Buffering the whole thing every five minutes
+ * would burn the free tier's CPU budget for no gain.
+ */
+async function getTextHead(url: string, maxBytes = 64 * 1024): Promise<string> {
+  const res = await fetchMaybeProxied(url, {
+    headers: {
+      accept: "text/html,application/xhtml+xml",
+      "user-agent": UA,
+      "accept-language": "fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7",
+      referer: new URL(url).origin + "/",
+    },
+  });
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw new Error(`${url} → ${res.status}`);
+  }
+  const reader = res.body?.getReader();
+  if (!reader) return "";
+  const decoder = new TextDecoder();
+  let out = "";
+  try {
+    while (out.length < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      out += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return out;
+}
+
 /** Persian/Arabic-Indic digits → ASCII, so "۱۹۷,۷۲۳" parses. */
 function faDigits(s: string): string {
   return s
@@ -357,52 +393,19 @@ export async function scrapeOmpfinex(): Promise<ExchangeQuote> {
   return quote("ompfinex", "OMPFinex", m.last_price, m.last_price, m.last_price);
 }
 
+/**
+ * Bit24 — the OTC quote lives on a separate host from their main API, which is
+ * why every api.bit24.cash path 404s. Prices are already Toman.
+ */
 export async function scrapeBit24(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.bit24.cash/api/v3/markets",
-    "https://bit24.cash/api/v3/markets",
-    "https://api.bit24.cash/api/v1/ticker",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>>; result?: Record<string, unknown> };
-      const list = Array.isArray(body)
-        ? body
-        : Array.isArray((body as { data?: unknown }).data)
-          ? ((body as { data: Array<Record<string, unknown>> }).data)
-          : [];
-      if (list.length) {
-        const m = list.find((x) => {
-          const s = String(x.symbol ?? x.pair ?? x.name ?? x.market ?? "").toUpperCase();
-          return s.includes("USDT") && (s.includes("IRT") || s.includes("TMN") || s.includes("IRR"));
-        });
-        if (m) {
-          return quote(
-            "bit24",
-            "Bit24",
-            m.ask ?? m.sell ?? m.buy_price ?? m.price,
-            m.bid ?? m.buy ?? m.sell_price ?? m.price,
-            m.last ?? m.price,
-          );
-        }
-      }
-      // flat ticker object
-      const flat = (body as { result?: Record<string, unknown> }).result ?? (body as Record<string, unknown>);
-      if (flat && (flat.USDTIRT || flat.usdt_irt || flat.USDT)) {
-        const u = (flat.USDTIRT ?? flat.usdt_irt ?? flat.USDT) as Record<string, unknown>;
-        return quote("bit24", "Bit24", u.ask ?? u.sell ?? u.price, u.bid ?? u.buy ?? u.price);
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("bit24: failed");
+  const body = (await getJson("https://otc-api.bit24.cash/api/v1/coins/markets?base=USDT")) as {
+    data?: { results?: Array<{ symbol?: string; each_price?: string | number }> };
+  };
+  const row = (body.data?.results ?? []).find((r) => (r.symbol ?? "").toUpperCase() === "USDT");
+  if (!row?.each_price) throw new Error("bit24: no USDT quote");
+  return quote("bit24", "Bit24", row.each_price, row.each_price, row.each_price);
 }
 
-/** OK-Ex (اوکی‌اکسچنج) */
 export async function scrapeOkEx(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.ok-ex.io/oapi/v1/market/overview",
@@ -449,42 +452,19 @@ export async function scrapeOkEx(): Promise<ExchangeQuote> {
   throw lastErr ?? new Error("okex: failed");
 }
 
-/** Pooleno (پول‌نو) */
+/**
+ * Pooleno — no public API, but the price page embeds a schema.org
+ * ExchangeRateSpecification near the top. Their JSON-LD labels the value IRR
+ * while it is actually Toman; toToman leaves it alone at this magnitude, and
+ * the sanity range catches it if they ever fix the label.
+ */
 export async function scrapePooleno(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.pooleno.ir/v1/price",
-    "https://api.pooleno.ir/v1/public/price",
-    "https://pooleno.ir/api/v1/price/usdt",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as Record<string, unknown> | Array<Record<string, unknown>>;
-      if (Array.isArray(body)) {
-        const u = body.find((x) => String(x.symbol ?? x.coin ?? "").toUpperCase() === "USDT");
-        if (u) return quote("pooleno", "Pooleno", u.buy ?? u.ask ?? u.price, u.sell ?? u.bid ?? u.price);
-      }
-      const d = (body as { data?: unknown }).data ?? body;
-      if (Array.isArray(d)) {
-        const u = d.find((x: Record<string, unknown>) => String(x.symbol ?? x.coin ?? "").toUpperCase() === "USDT");
-        if (u) return quote("pooleno", "Pooleno", u.buy ?? u.price, u.sell ?? u.price);
-      }
-      const flat = (typeof d === "object" && d ? d : body) as Record<string, unknown>;
-      const usdt = (flat.USDT ?? flat.usdt ?? flat) as Record<string, unknown>;
-      return quote(
-        "pooleno",
-        "Pooleno",
-        usdt.buy ?? usdt.buyPrice ?? usdt.price ?? flat.buy,
-        usdt.sell ?? usdt.sellPrice ?? usdt.price ?? flat.sell,
-      );
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("pooleno: failed");
+  const head = await getTextHead("https://pooleno.ir/price/usdt");
+  const m = /"priceTMN\\?":\\?"(\d+)/.exec(head) ?? /"price":(\d{5,7}),"priceCurrency":"IRR"/.exec(head);
+  if (!m?.[1]) throw new Error("pooleno: no USDT price in page head");
+  return quote("pooleno", "Pooleno", m[1], m[1], m[1]);
 }
 
-/** Sarmayex (سرمایکس) */
 export async function scrapeSarmayex(): Promise<ExchangeQuote> {
   const urls = [
     "https://api.sarmayex.com/api/v2/currency",

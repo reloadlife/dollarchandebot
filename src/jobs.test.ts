@@ -65,3 +65,31 @@ test("arzplus price parses persian digits", async () => {
     restore();
   }
 });
+
+import { scrapeBit24, scrapePooleno } from "./scrape/exchanges";
+
+test("bit24 reads each_price from the OTC host", async () => {
+  const orig = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: { results: [{ symbol: "BTC", each_price: "15135474024" }, { symbol: "USDT", each_price: "196613.2" }] },
+      }),
+    )) as typeof fetch;
+  try {
+    expect((await scrapeBit24()).mid).toBe(196613);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
+
+test("pooleno reads the schema.org block without buffering the whole page", async () => {
+  const orig = globalThis.fetch;
+  const head = '<script type="application/ld+json">{"@type":"ExchangeRateSpecification","price":197336,"priceCurrency":"IRR"}</script>';
+  globalThis.fetch = (async () => new Response(head + "x".repeat(500_000))) as typeof fetch;
+  try {
+    expect((await scrapePooleno()).mid).toBe(197336);
+  } finally {
+    globalThis.fetch = orig;
+  }
+});
