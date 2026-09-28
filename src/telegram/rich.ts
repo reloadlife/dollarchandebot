@@ -12,6 +12,15 @@ import type { Lang } from "../db/settings";
 import type { ChartRange } from "../chart/serve";
 import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
 import { t } from "../lib/i18n";
+import { compactTable, type TableCell } from "../lib/rich-table";
+
+function cell(label: string): TableCell {
+  return { text: escapeHtml(label) };
+}
+
+function numCell(n: number): TableCell {
+  return { text: formatPrice(n), align: "right", bold: true };
+}
 import { em } from "./emoji";
 
 function channelUrl(env: Env): string {
@@ -332,14 +341,21 @@ export function richExchanges(
   lang: Lang = "en",
 ): string {
   const sorted = [...rows].sort((a, b) => (a.mid ?? 1e18) - (b.mid ?? 1e18));
-  const lines = sorted
-    .map((r) => {
-      const buy = r.buy != null ? formatPrice(r.buy) : "—";
-      const sell = r.sell != null ? formatPrice(r.sell) : "—";
-      const mid = r.mid != null ? formatPrice(r.mid) : "—";
-      return `<p><b>${escapeHtml(r.name)}</b> · ${escapeHtml(t(lang, "exMid"))} <b>${mid}</b>\n${em("buy")} ${escapeHtml(t(lang, "cardBuy"))} ${buy} · ${em("sell")} ${escapeHtml(t(lang, "cardSell"))} ${sell}</p>`;
-    })
-    .join("\n");
+  const num = (n: number | null) => (n != null ? formatPrice(n) : "—");
+  const table = compactTable([
+    [
+      { text: escapeHtml(t(lang, "exCol")), header: true },
+      { text: escapeHtml(t(lang, "cardBuy")), header: true, align: "right" },
+      { text: escapeHtml(t(lang, "cardSell")), header: true, align: "right" },
+      { text: escapeHtml(t(lang, "exMid")), header: true, align: "right" },
+    ],
+    ...sorted.map((r) => [
+      { text: escapeHtml(r.name) },
+      { text: num(r.buy), align: "right" as const },
+      { text: num(r.sell), align: "right" as const },
+      { text: num(r.mid), align: "right" as const, bold: true },
+    ]),
+  ]);
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
   const when = newest ? formatTimeTehran(newest) : "—";
   const mids = sorted.map((r) => r.mid).filter((x): x is number => x != null);
@@ -354,7 +370,7 @@ export function richExchanges(
 <h2>${em("price")} ${escapeHtml(t(lang, "exTitle"))}</h2>
 <p><i>${rows.length} · ${escapeHtml(t(lang, "exHint"))}</i></p>
 ${spread}
-${lines || empty}
+${sorted.length ? table : empty}
 <p>${em("clock")} <tg-time unix="${newest || Math.floor(Date.now() / 1000)}" format="r">${escapeHtml(when)}</tg-time> · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -370,10 +386,19 @@ export function richCompare(
   const spreadPct = b.price > 0 ? (spread / b.price) * 100 : 0;
   const sign = spread >= 0 ? "+" : "";
   const unit = escapeHtml(t(lang, "cardUnit"));
+  const table = compactTable([
+    [
+      { text: `${a.emoji} $${a.id}` },
+      { text: `${formatPrice(a.price)} ${unit}`, align: "right", bold: true },
+    ],
+    [
+      { text: `${b.emoji} $${b.id}` },
+      { text: `${formatPrice(b.price)} ${unit}`, align: "right", bold: true },
+    ],
+  ]);
   return `
 <h2>${a.emoji} $${a.id} vs ${b.emoji} $${b.id}</h2>
-<p>${a.emoji} <b>${formatPrice(a.price)}</b> ${unit}</p>
-<p>${b.emoji} <b>${formatPrice(b.price)}</b> ${unit}</p>
+${table}
 <p>${escapeHtml(t(lang, "cmpSpread"))} <b>${sign}${formatPrice(spread)}</b> (${sign}${spreadPct.toFixed(2)}%)</p>
 <p>1 $${a.id} ≈ <b>${ratio.toFixed(4)}</b> $${b.id}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
@@ -386,9 +411,12 @@ export function richMulti(
   lang: Lang = "en",
 ): string {
   const unit = escapeHtml(t(lang, "cardUnit"));
-  const body = rows
-    .map((r) => `<p>${r.emoji} $${r.id} · <b>${formatPrice(r.price)}</b> ${unit}</p>`)
-    .join("\n");
+  const body = compactTable(
+    rows.map((r) => [
+      { text: `${r.emoji} $${r.id}` },
+      { text: `${formatPrice(r.price)} ${unit}`, align: "right" as const, bold: true },
+    ]),
+  );
   return `
 <h2>${em("sparkle")} ${escapeHtml(t(lang, "snapTitle"))}</h2>
 ${body}
@@ -403,20 +431,32 @@ export function richHistory(
   days: Array<{ day: string; open: number; high: number; low: number; close: number }>,
   lang: Lang = "en",
 ): string {
-  const o = escapeHtml(t(lang, "ohlcOpen"));
-  const h = escapeHtml(t(lang, "ohlcHigh"));
-  const l = escapeHtml(t(lang, "ohlcLow"));
-  const c = escapeHtml(t(lang, "ohlcClose"));
-  const lines = days
-    .slice(-7)
-    .map(
-      (d) =>
-        `<p><code>${escapeHtml(d.day)}</code> ${o} ${formatPrice(d.open)} · ${h} ${formatPrice(d.high)} · ${l} ${formatPrice(d.low)} · ${c} <b>${formatPrice(d.close)}</b></p>`,
-    )
-    .join("\n");
+  const head = (key: "ohlcOpen" | "ohlcHigh" | "ohlcLow" | "ohlcClose"): TableCell => ({
+    text: escapeHtml(t(lang, key)),
+    header: true,
+    align: "right",
+  });
+  const lines = days.length
+    ? compactTable([
+        [
+          { text: escapeHtml(t(lang, "histTitle")), header: true },
+          head("ohlcOpen"),
+          head("ohlcHigh"),
+          head("ohlcLow"),
+          head("ohlcClose"),
+        ],
+        ...days.slice(-7).map((d) => [
+          { text: escapeHtml(d.day) },
+          { text: formatPrice(d.open), align: "right" as const },
+          { text: formatPrice(d.high), align: "right" as const },
+          { text: formatPrice(d.low), align: "right" as const },
+          { text: formatPrice(d.close), align: "right" as const, bold: true },
+        ]),
+      ])
+    : `<p>${escapeHtml(t(lang, "histEmpty"))}</p>`;
   return `
 <h2>${emoji} $${id} ${escapeHtml(t(lang, "histTitle"))}</h2>
-${lines || `<p>${escapeHtml(t(lang, "histEmpty"))}</p>`}
+${lines}
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -431,24 +471,33 @@ export function richOhlc(
   if (!d) {
     return `<h2>${emoji} $${id}</h2><p>${escapeHtml(t(lang, "ohlcEmpty"))}</p>`;
   }
+  const bar = compactTable([
+    [
+      { text: escapeHtml(t(lang, "ohlcOpen")) },
+      { text: formatPrice(d.open), align: "right", bold: true },
+    ],
+    [
+      { text: escapeHtml(t(lang, "ohlcHigh")) },
+      { text: formatPrice(d.high), align: "right", bold: true },
+    ],
+    [
+      { text: escapeHtml(t(lang, "ohlcLow")) },
+      { text: formatPrice(d.low), align: "right", bold: true },
+    ],
+    [
+      { text: escapeHtml(t(lang, "ohlcClose")) },
+      { text: formatPrice(d.close), align: "right", bold: true },
+    ],
+  ]);
   return `
 <h2>${emoji} $${id} · ${escapeHtml(d.day)}</h2>
-<p>${escapeHtml(t(lang, "ohlcOpen"))} <b>${formatPrice(d.open)}</b></p>
-<p>${em("high")} ${escapeHtml(t(lang, "ohlcHigh"))} <b>${formatPrice(d.high)}</b></p>
-<p>${em("low")} ${escapeHtml(t(lang, "ohlcLow"))} <b>${formatPrice(d.low)}</b></p>
-<p>${escapeHtml(t(lang, "ohlcClose"))} <b>${formatPrice(d.close)}</b></p>
+${bar}
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
-/** Right-align numbers in a monospaced price block (tabs/spaces). */
-function priceLine(label: string, n: number, labelW = 9, numW = 14): string {
-  const num = formatPrice(n);
-  return `${label.padEnd(labelW)}${num.padStart(numW)}`;
-}
-
 /**
- * Free-market card (no tables):
+ * Free-market card:
  *
  *   💲 US Dollar
  *   $USD · free market
@@ -507,13 +556,12 @@ export function richSymbolPrice(
 <p>${em("chart")} <i>${escapeHtml(pulse)}</i></p>`
     : "";
 
-  // Tab-aligned book (plain text in <pre> so columns stay fixed-width)
-  const book = [
-    priceLine(t(lang, "cardBuy"), buy, 10, 12),
-    priceLine(t(lang, "cardSell"), sell, 10, 12),
-    priceLine(t(lang, "cardDayHigh"), high, 10, 12),
-    priceLine(t(lang, "cardDayLow"), low, 10, 12),
-  ].join("\n");
+  const book = compactTable([
+    [cell(t(lang, "cardBuy")), numCell(buy)],
+    [cell(t(lang, "cardSell")), numCell(sell)],
+    [cell(t(lang, "cardDayHigh")), numCell(high)],
+    [cell(t(lang, "cardDayLow")), numCell(low)],
+  ]);
 
   // Client renders these as live local datetime (format regex: r | w?[dD]?[tT]?)
   // Fallback text = absolute Tehran string so older clients still read something.
@@ -527,7 +575,7 @@ ${chartBlock}
 <p>${em("price")} <b>${formatPrice(row.price)}</b> ${unit}</p>
 <p>${em("sparkle")} <b>${escapeHtml(t(lang, "cardTick"))}</b> · ${tickCh}</p>
 <p>${em("chart")} <b>${escapeHtml(t(lang, "cardDay"))}</b> · ${dayCh}</p>
-<pre>${book}</pre>
+${book}
 <p>${em("clock")} ${timeLive} · ${timeRel}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">${channel}</a></p>
 `.trim();

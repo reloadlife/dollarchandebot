@@ -45,6 +45,8 @@ test("persian symbol card uses toman labels and the selected range", () => {
   expect(html).toContain("خرید");
   expect(html).toContain("فروش");
   expect(html).toContain("سقف امروز");
+  expect(html).toContain("<table compact");
+  expect(html).not.toContain("<pre>");
   expect(html).toContain("۷ روز");
   expect(html).not.toContain("free market");
   expect(html).not.toContain("24h pulse");
@@ -75,6 +77,7 @@ test("exchange and history cards follow the chat language", () => {
     [{ day: "2026-09-01", open: 1, high: 2, low: 1, close: 2 }],
     "fa",
   );
+  expect(hist).toContain("<table compact");
   expect(hist).toContain("تاریخچه");
   expect(hist).toContain("باز");
   expect(hist).not.toContain(">O <");

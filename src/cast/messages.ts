@@ -13,7 +13,8 @@ import {
 } from "../lib/format";
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
-import { sendMessage, sendPhoto } from "../telegram/api";
+import { compactTable, type TableCell } from "../lib/rich-table";
+import { sendMessage, sendPhoto, sendRichMessage } from "../telegram/api";
 
 function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
@@ -72,15 +73,29 @@ function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string
   return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر" };
 }
 
-/** Farsi name + bold price + optional tick Δ (same style as طلا). */
-function faPriceLine(
-  name: string,
+function head(labels: string[]): TableCell[] {
+  return labels.map((label, i) => ({
+    text: escapeHtml(label),
+    header: true,
+    align: i === 0 ? "left" : "right",
+  }));
+}
+
+function quoteRow(
+  label: string,
   price: number | undefined,
   prev?: number | null,
-): string {
-  if (price == null) return `${escapeHtml(name)}  —`;
-  const d = formatDeltaQuiet(price, prev);
-  return `${escapeHtml(name)}  <b>${formatPrice(price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
+): TableCell[] {
+  const delta = price != null ? formatDeltaQuiet(price, prev) : null;
+  return [
+    { text: escapeHtml(label) },
+    {
+      text: price != null ? formatPrice(price) : "—",
+      align: "right",
+      bold: price != null,
+    },
+    { text: escapeHtml(delta ?? "—"), align: "right" },
+  ];
 }
 
 /** Signed spread / bubble, e.g. +850 or −50 */
@@ -108,32 +123,25 @@ function formatBubbleTag(bubble: number, pct: number): string {
   return `حباب ${sign}${amount} (${pctStr})`;
 }
 
-function coinSectionLines(map: Map<string, LatestRow>): string[] {
+function coinTable(map: Map<string, LatestRow>): { html: string; note: string } {
   const gold18 = map.get("GOLD18")?.price;
-  const lines: string[] = ["🪙 <b>سکه</b>"];
-  if (gold18 == null) {
-    lines.push("  <i>گرم ۱۸ در دسترس نیست — حباب محاسبه نشد</i>");
-  }
-
-  for (const id of COIN_IDS) {
+  const note =
+    gold18 == null ? "<p><i>گرم ۱۸ در دسترس نیست — حباب محاسبه نشد</i></p>" : "";
+  const rows = COIN_IDS.map((id) => {
     const row = map.get(id);
-    const lab = COIN_LABEL[id] ?? id;
-    if (!row) {
-      lines.push(`  ${escapeHtml(lab)}  —`);
-      continue;
-    }
-    const d = formatDeltaQuiet(row.price, row.prev_price);
-    let line = `  ${escapeHtml(lab)}  <b>${formatPrice(row.price)}</b>`;
-    if (d) line += `  ${escapeHtml(d)}`;
-
+    const base = quoteRow(COIN_LABEL[id] ?? id, row?.price, row?.prev_price);
     const spec = COIN_SPECS[id];
-    if (spec && gold18 != null && gold18 > 0) {
+    let bubble = "—";
+    if (row && spec && gold18 != null && gold18 > 0) {
       const b = calcCoinBubble(row.price, gold18, spec);
-      line += `  · <i>${escapeHtml(formatBubbleTag(b.bubble, b.bubblePct))}</i>`;
+      bubble = formatBubbleTag(b.bubble, b.bubblePct);
     }
-    lines.push(line);
-  }
-  return lines;
+    return [...base, { text: escapeHtml(bubble), align: "right" as const }];
+  });
+  return {
+    note,
+    html: compactTable([head(["سکه", "قیمت", "تغییر", "حباب"]), ...rows]),
+  };
 }
 
 type ExMid = ExchangeRow & { midN: number; buyN: number | null; sellN: number | null };
@@ -163,23 +171,23 @@ function usdtSection(
   exchanges: ExchangeRow[],
   usdtAgeSec = 0,
 ): string[] {
-  const lines: string[] = ["💰 <b>تتر</b>"];
+  const lines: string[] = ["<h3>💰 تتر</h3>"];
   const stale = usdtAgeSec > USDT_STALE_SEC;
 
   if (usdtMid != null) {
     // Never print a frozen number as if it were current — every USDT source can
     // be ASN-blocked at once, and silence beats a confidently wrong rate.
     const note = stale ? `  <i>(قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه پیش)</i>` : "";
-    lines.push(`  قیمت  <b>${formatPrice(usdtMid)}</b>${note}`);
+    lines.push(`<p>قیمت <b>${formatPrice(usdtMid)}</b>${note}</p>`);
   } else {
-    lines.push("  قیمت  —");
+    lines.push("<p>قیمت —</p>");
   }
 
   if (usdtMid != null && usdMid != null && !stale) {
     const diff = usdtMid - usdMid;
     const hint =
       diff > 0 ? "تتر گران‌تر از دلار" : diff < 0 ? "تتر ارزان‌تر از دلار" : "هم‌قیمت با دلار";
-    lines.push(`  اختلاف با دلار  <b>${formatSignedSpread(diff)}</b>  <i>(${hint})</i>`);
+    lines.push(`<p>اختلاف با دلار <b>${formatSignedSpread(diff)}</b> <i>(${hint})</i></p>`);
   }
 
   const withMid = normalizeExchanges(exchanges);
@@ -189,8 +197,8 @@ function usdtSection(
     const hi = withMid.reduce((a, b) => (b.midN > a.midN ? b : a));
     const lo = withMid.reduce((a, b) => (b.midN < a.midN ? b : a));
     lines.push(
-      `  ⬆ بالاترین  <b>${escapeHtml(hi.name)}</b> · ${formatPrice(hi.midN)}`,
-      `  ⬇ پایین‌ترین  <b>${escapeHtml(lo.name)}</b> · ${formatPrice(lo.midN)}`,
+      `<p>⬆ بالاترین <b>${escapeHtml(hi.name)}</b> · ${formatPrice(hi.midN)}</p>`,
+      `<p>⬇ پایین‌ترین <b>${escapeHtml(lo.name)}</b> · ${formatPrice(lo.midN)}</p>`,
     );
 
     const buyers = withMid.filter((e) => e.buyN != null);
@@ -205,7 +213,7 @@ function usdtSection(
     if (cheapBuy?.buyN != null && bestSell?.sellN != null && cheapBuy.exchange !== bestSell.exchange) {
       const spread = bestSell.sellN - cheapBuy.buyN;
       lines.push(
-        `  آربیتراژ  خرید <b>${escapeHtml(cheapBuy.name)}</b> → فروش <b>${escapeHtml(bestSell.name)}</b> · <b>${formatSignedSpread(spread)}</b>`,
+        `<p>آربیتراژ خرید <b>${escapeHtml(cheapBuy.name)}</b> → فروش <b>${escapeHtml(bestSell.name)}</b> · <b>${formatSignedSpread(spread)}</b></p>`,
       );
     }
   }
@@ -227,18 +235,21 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const ts = newest || Math.floor(Date.now() / 1000);
   const mood = marketMood(map);
 
-  const fxLines = FX_TICKER.map(({ id, label }) => {
-    const row = map.get(id);
-    return faPriceLine(label, row?.price, row?.prev_price);
-  });
-
-  const goldLines = GOLD_IDS.map((id) => {
-    const row = map.get(id);
-    const lab = GOLD_LABEL[id] ?? id;
-    if (!row) return `  ${escapeHtml(lab)}  —`;
-    const d = formatDeltaQuiet(row.price, row.prev_price);
-    return `  ${escapeHtml(lab)}  <b>${formatPrice(row.price)}</b>${d ? `  ${escapeHtml(d)}` : ""}`;
-  });
+  const fxTable = compactTable([
+    head(["ارز", "قیمت", "تغییر"]),
+    ...FX_TICKER.map(({ id, label }) => {
+      const row = map.get(id);
+      return quoteRow(label, row?.price, row?.prev_price);
+    }),
+  ]);
+  const goldTable = compactTable([
+    head(["طلا", "قیمت", "تغییر"]),
+    ...GOLD_IDS.map((id) => {
+      const row = map.get(id);
+      return quoteRow(GOLD_LABEL[id] ?? id, row?.price, row?.prev_price);
+    }),
+  ]);
+  const coins = coinTable(map);
 
   const usd = map.get("USD")?.price;
   const usdtRow = map.get("USDT");
@@ -246,24 +257,33 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const usdtAgeSec = usdtRow ? Math.max(0, Math.floor(Date.now() / 1000) - usdtRow.updated_at) : 0;
 
   const out: string[] = [
-    `⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان`,
-    "",
-    ...fxLines,
-    "",
-    "🥇 <b>طلا</b>",
-    ...goldLines,
-    "",
-    ...coinSectionLines(map),
-    "",
+    `<h2>نرخ بازار آزاد</h2>`,
+    `<p>⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
+    `<h3>💱 ارز</h3>`,
+    fxTable,
+    `<h3>🥇 طلا</h3>`,
+    goldTable,
+    `<h3>🪙 سکه</h3>`,
+    coins.note,
+    coins.html,
     ...usdtSection(usdt, usd, exchanges, usdtAgeSec),
-    "",
-    `📊 ${mood.emoji} <b>${mood.label}</b>`,
-    `<i>${escapeHtml(mood.sub)}</i>`,
-    "",
-    `🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}`,
+    `<p>📊 ${mood.emoji} <b>${escapeHtml(mood.label)}</b></p>`,
+    `<p><i>${escapeHtml(mood.sub)}</i></p>`,
+    `<p>🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}</p>`,
   ];
 
-  return out.join("\n");
+  return out.filter(Boolean).join("\n");
+}
+
+/** Rich tags stripped, for clients or a failed rich send. */
+function htmlToPlain(html: string): string {
+  return html
+    .replace(/<\/tr>/gi, "\n")
+    .replace(/<\/t[dh]>/gi, "  ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[ \t]{2,}/g, "  ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /** Channel posts should not ding subscribers. */
@@ -276,11 +296,11 @@ export async function castPriceList(env: Env): Promise<void> {
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
   try {
-    await sendMessage(env, chatId, text, CHANNEL_SILENT);
+    await sendRichMessage(env, chatId, text, CHANNEL_SILENT);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("castPriceList sendMessage failed", { chatId, err: msg });
-    throw e;
+    console.error("castPriceList rich failed, plain fallback", { chatId, err: msg });
+    await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT);
   }
 }
 
