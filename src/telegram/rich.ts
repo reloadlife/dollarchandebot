@@ -1,6 +1,6 @@
 /**
- * Rich message HTML (Bot API sendRichMessage) for normal PV/group replies.
- * Guest/inline keep classic InputTextMessageContent / captions.
+ * Rich message HTML (Bot API sendRichMessage).
+ * Private chats, the channel list, inline results, and guest replies share it.
  */
 
 import type { Env } from "../env";

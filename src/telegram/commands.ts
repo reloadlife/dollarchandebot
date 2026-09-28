@@ -77,7 +77,8 @@ export async function setupBotMenu(env: Env): Promise<{ ok: true; locales: strin
   for (const loc of LOCALES) {
     const tag = loc.code ?? "default";
     await callTelegram(env, "setMyCommands", {
-      commands: loc.commands,
+      // In groups these commands are visible only to the person who sent them.
+      commands: loc.commands.map((c) => ({ ...c, is_ephemeral: true })),
       ...(loc.code ? { language_code: loc.code } : {}),
       scope: { type: "default" },
     });

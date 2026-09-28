@@ -12,11 +12,13 @@ import { getAllLatest } from "../db/prices";
 import { t } from "../lib/i18n";
 import { escapeHtml } from "../lib/format";
 import {
+  editEphemeralRichMessage,
   editRichMessage,
   sendMessage,
   sendRichMessage,
   TelegramError,
 } from "./api";
+import { packEphemeral, type EphemeralTarget } from "./ephemeral";
 import {
   richHelp,
   richHome,
@@ -55,6 +57,8 @@ export type ShowTarget = {
   messageId?: number;
   /** Reply-to for new sends only */
   replyTo?: number;
+  /** Group reply visible only to this user. */
+  ephemeral?: EphemeralTarget;
 };
 
 const PAGE_SIZE = 9; // 3×3
@@ -497,19 +501,37 @@ export async function showScreen(
   target: ShowTarget,
   screen: Screen,
 ): Promise<void> {
-  const extra: Record<string, unknown> = {
-    reply_markup: screen.forceReply
-      ? { ...screen.keyboard, force_reply: true }
-      : screen.keyboard,
-  };
-  if (target.messageId != null && target.messageId > 0) {
+  const markup = screen.forceReply
+    ? { ...screen.keyboard, force_reply: true }
+    : screen.keyboard;
+  const extra = packEphemeral(target.ephemeral, { reply_markup: markup });
+  // Edit only a card this bot already sent. A user's ephemeral command is a reply target, not an edit target.
+  const editEph =
+    target.messageId != null &&
+    target.messageId > 0 &&
+    target.ephemeral?.ephemeralMessageId === target.messageId;
+  if (editEph && target.ephemeral) {
+    try {
+      await editEphemeralRichMessage(
+        env,
+        target.chatId,
+        target.ephemeral.receiverUserId,
+        target.messageId!,
+        screen.html,
+        { reply_markup: markup },
+      );
+      return;
+    } catch (e) {
+      console.error("editEphemeralRichMessage failed, fallback send", e);
+    }
+  } else if (target.messageId != null && target.messageId > 0 && !target.ephemeral) {
     try {
       await editRichMessage(
         env,
         target.chatId,
         target.messageId,
         screen.html,
-        extra,
+        { reply_markup: markup },
       );
       return;
     } catch (e) {
@@ -517,7 +539,7 @@ export async function showScreen(
       // fall through to send
     }
   }
-  if (target.replyTo != null && target.replyTo > 0) {
+  if (target.replyTo != null && target.replyTo > 0 && !extra.reply_parameters) {
     extra.reply_parameters = { message_id: target.replyTo };
   }
   try {
@@ -530,9 +552,12 @@ export async function showScreen(
       .replace(/\n{3,}/g, "\n\n")
       .trim();
     try {
-      await sendMessage(env, target.chatId, plain, {
-        reply_markup: screen.keyboard,
-      });
+      await sendMessage(
+        env,
+        target.chatId,
+        plain,
+        packEphemeral(target.ephemeral, { reply_markup: screen.keyboard }),
+      );
     } catch (e2) {
       console.error("plain send also failed", e2);
       throw e2;

@@ -36,6 +36,7 @@ import {
   richCompare,
   richMulti,
   richOhlc,
+  richHelp,
   richSymbolPrice,
   richSymbols,
   richUnknown,
@@ -61,6 +62,7 @@ import {
   type PendingAlert,
   type WizardDirection,
 } from "./alert-flow";
+import { isGroupChat, packEphemeral } from "./ephemeral";
 import {
   menuOnlyKeyboard,
   parseCallback,
@@ -87,16 +89,18 @@ async function replyRich(
   chatId: string | number,
   html: string,
   extra: Record<string, unknown> = {},
+  target?: ShowTarget,
 ): Promise<void> {
+  const packed = target ? packEphemeral(target.ephemeral, extra) : extra;
   try {
-    await sendRichMessage(env, chatId, html, extra);
+    await sendRichMessage(env, chatId, html, packed);
   } catch (e) {
     console.error("sendRichMessage failed, fallback sendMessage", e);
     const plain = html
       .replace(/<\/?(h[1-6]|ul|ol|li|table|tr|td|th|p|tg-time|img)[^>]*>/gi, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
-    await sendMessage(env, chatId, plain, extra);
+    await sendMessage(env, chatId, plain, packed);
   }
 }
 
@@ -169,13 +173,20 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const rl = await rateLimit(env.CACHE, `chat:${chatId}`, 30, 60);
   if (!rl.ok) {
     const settings = await getSettings(env.DB, String(chatId));
-    await sendMessage(env, chatId, t(settings.lang, "rateLimited"));
+    await sendMessage(env, chatId, t(settings.lang, "rateLimited"), packEphemeral(msg.ephemeral_message_id && msg.from && isGroupChat(msg.chat.type) ? { receiverUserId: msg.from.id, ephemeralMessageId: msg.ephemeral_message_id } : undefined));
     return;
   }
 
   const replyTo = msg.message_id;
   const settings = await getSettings(env.DB, String(chatId));
-  const sendTarget: ShowTarget = { chatId, replyTo };
+  const sendTarget: ShowTarget = {
+    chatId,
+    replyTo: msg.ephemeral_message_id ? undefined : replyTo,
+    ephemeral:
+      isGroupChat(msg.chat.type) && msg.ephemeral_message_id && msg.from
+        ? { receiverUserId: msg.from.id, ephemeralMessageId: msg.ephemeral_message_id }
+        : undefined,
+  };
 
   if (command) {
     await clearPendingAlert(env, chatId);
@@ -212,7 +223,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       await replyRich(env, chatId, richSymbols(settings.lang), {
         ...replyParams(replyTo),
         reply_markup: menuOnlyKeyboard(settings.lang),
-      });
+      }, sendTarget);
       return;
     }
     await showScreen(env, sendTarget, screenCategories(settings.lang));
@@ -236,7 +247,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "fee") {
     const n = Number(command.arg.replace("%", ""));
     if (!Number.isFinite(n)) {
-      await sendMessage(env, chatId, t(settings.lang, "usageFee"));
+      await sendMessage(env, chatId, t(settings.lang, "usageFee"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     await setFeePct(env.DB, String(chatId), n);
@@ -259,12 +270,12 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     const a = resolveSymbol(parts[0] ?? "USD");
     const b = resolveSymbol(parts[1] ?? "USDT");
     if (!a || !b) {
-      await sendMessage(env, chatId, t(settings.lang, "usageCompare"));
+      await sendMessage(env, chatId, t(settings.lang, "usageCompare"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     const [ra, rb] = await Promise.all([getLatest(env.DB, a.id), getLatest(env.DB, b.id)]);
     if (!ra || !rb) {
-      await sendMessage(env, chatId, t(settings.lang, "needPrice"));
+      await sendMessage(env, chatId, t(settings.lang, "needPrice"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     await replyRich(
@@ -280,6 +291,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         ...replyParams(replyTo),
         reply_markup: menuOnlyKeyboard(settings.lang),
       },
+      sendTarget,
     );
     return;
   }
@@ -287,7 +299,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "history" || command?.cmd === "ohlc") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
-      await sendMessage(env, chatId, t(settings.lang, "usageHistory"));
+      await sendMessage(env, chatId, t(settings.lang, "usageHistory"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     const days = await getOhlcDays(env.DB, def.id, 7);
@@ -300,6 +312,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
           ...replyParams(replyTo),
           reply_markup: menuOnlyKeyboard(settings.lang),
         },
+        sendTarget,
       );
     } else {
       await showScreen(
@@ -314,7 +327,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "chart7d" || command?.cmd === "7d") {
     const def = resolveSymbol(command.arg || "USD");
     if (!def) {
-      await sendMessage(env, chatId, t(settings.lang, "usage7d"));
+      await sendMessage(env, chatId, t(settings.lang, "usage7d"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     await sendSymbolCard(env, chatId, def.id, settings.lang, sendTarget, "7d");
@@ -336,12 +349,13 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         env,
         chatId,
         `${t(settings.lang, "unknownSymbol")} <code>${escapeHtml(m[1] ?? "")}</code>`,
+        packEphemeral(sendTarget.ephemeral),
       );
       return;
     }
     const n = await countAlerts(env.DB, String(chatId));
     if (n >= 10) {
-      await sendMessage(env, chatId, t(settings.lang, "maxAlerts"));
+      await sendMessage(env, chatId, t(settings.lang, "maxAlerts"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     let direction: "above" | "below" | "move_pct" = "above";
@@ -366,7 +380,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       env,
       chatId,
       `${t(settings.lang, "alertAdded")} #${id}\n<code>${def.id}</code> ${direction} ${thr} · ${modeLabel}`,
-      { reply_markup: menuOnlyKeyboard(settings.lang) },
+      packEphemeral(sendTarget.ephemeral, { reply_markup: menuOnlyKeyboard(settings.lang) }),
     );
     return;
   }
@@ -378,7 +392,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "unalert" || command?.cmd === "delalert") {
     const id = Number(command.arg);
     if (!id) {
-      await sendMessage(env, chatId, t(settings.lang, "usageUnalert"));
+      await sendMessage(env, chatId, t(settings.lang, "usageUnalert"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     const ok = await deleteAlert(env.DB, String(chatId), id);
@@ -388,10 +402,11 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       ok
         ? `${t(settings.lang, "alertDeleted")} #${id}`
         : t(settings.lang, "alertNotFound"),
+      packEphemeral(sendTarget.ephemeral),
     );
     if (ok) {
       const rows = await listAlerts(env.DB, String(chatId));
-      await showScreen(env, { chatId }, screenAlerts(settings.lang, rows));
+      await showScreen(env, sendTarget, screenAlerts(settings.lang, rows));
     }
     return;
   }
@@ -409,17 +424,17 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       await replyRich(env, chatId, richMulti(env, rows, settings.lang), {
         ...replyParams(replyTo),
         reply_markup: menuOnlyKeyboard(settings.lang),
-      });
+      }, sendTarget);
       return;
     }
   }
 
   if (looksLikeCalc(text) || command?.cmd === "calc") {
     const q = command?.cmd === "calc" ? command.arg : text;
-    await replyCalc(env, chatId, q, {
+    await replyCalc(env, chatId, q, packEphemeral(sendTarget.ephemeral, {
       ...replyParams(replyTo),
       reply_markup: menuOnlyKeyboard(settings.lang),
-    }, settings.fee_pct);
+    }), settings.fee_pct);
     return;
   }
 
@@ -430,7 +445,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const def = resolveSymbol(symRaw);
   if (!def) {
     if (command) {
-      await sendMessage(env, chatId, t(settings.lang, "unknown"));
+      await sendMessage(env, chatId, t(settings.lang, "unknown"), packEphemeral(sendTarget.ephemeral));
       return;
     }
     // Try search suggestions for unknown text
@@ -461,6 +476,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
             ],
           },
         },
+        sendTarget,
       );
       return;
     }
@@ -468,7 +484,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     await replyRich(env, chatId, richUnknown(shown, settings.lang), {
       ...replyParams(replyTo),
       reply_markup: menuOnlyKeyboard(settings.lang),
-    });
+    }, sendTarget);
     return;
   }
 
@@ -544,10 +560,22 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
   }
 
   let settings = await getSettings(env.DB, String(chatId));
+  const chatType = cq.message?.chat?.type;
+  const ephId = cq.message?.ephemeral_message_id;
   const target: ShowTarget = {
     chatId,
     messageId: messageId && messageId > 0 ? messageId : undefined,
   };
+  if (isGroupChat(chatType) && cq.from?.id) {
+    if (ephId) {
+      target.ephemeral = { receiverUserId: cq.from.id, ephemeralMessageId: ephId };
+      target.messageId = ephId;
+    } else {
+      // Don't rewrite a message the whole group can see. Answer this person only.
+      target.ephemeral = { receiverUserId: cq.from.id, callbackQueryId: cq.id };
+      target.messageId = undefined;
+    }
+  }
 
   let toast: string | undefined;
 
@@ -791,27 +819,33 @@ function extractGuestQuery(text: string, botUsername: string): string {
   return text.replace(re, " ").replace(/\s+/g, " ").trim();
 }
 
-function guestHelpArticle(env: Env): Record<string, unknown> {
+function richArticle(
+  id: string,
+  title: string,
+  description: string,
+  html: string,
+): Record<string, unknown> {
   return {
     type: "article",
-    id: "guest-help",
-    title: "Dollar Chande · prices & calc",
-    description: "USD · 10 USDT + 5 EUR · /help",
+    id,
+    title,
+    description,
     input_message_content: {
-      message_text: [
-        `👋 <b>Dollar Chande</b> · guest reply`,
-        ``,
-        `Mention me with a symbol or calculation:`,
-        `<code>@${escapeHtml(env.BOT_USERNAME)} USD</code>`,
-        `<code>@${escapeHtml(env.BOT_USERNAME)} 10 USDT + 5 EUR</code>`,
-        ``,
-        `DM me for charts anytime · /start`,
-        `📣 @${escapeHtml(env.CHANNEL_USERNAME)}`,
-      ].join("\n"),
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
+      rich_message: {
+        html,
+        skip_entity_detection: false,
+      },
     },
   };
+}
+
+function guestHelpArticle(env: Env, lang: Lang): Record<string, unknown> {
+  return richArticle(
+    "guest-help",
+    "Dollar Chande",
+    lang === "fa" ? "USD · ۱۰ تتر + ۵ یورو" : "USD · 10 USDT + 5 EUR",
+    richHelp(env, lang),
+  );
 }
 
 async function buildCalcInlineResult(
@@ -931,7 +965,7 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
     let result: Record<string, unknown>;
 
     if (!query) {
-      result = guestHelpArticle(env);
+      result = guestHelpArticle(env, guestLang);
     } else if (looksLikeCalc(query)) {
       result = await buildCalcInlineResult(env, query);
     } else {
@@ -943,22 +977,13 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
         if (hits[0]) {
           result = await buildSymbolInlineResult(env, hits[0], guestLang);
         } else {
-          result = {
-            type: "article",
-            id: "guest-unknown",
-            title: "Unknown symbol",
-            description: query,
-            input_message_content: {
-              message_text: [
-                `❓ Unknown: <code>${escapeHtml(normalizeSymbolQuery(query) || query)}</code>`,
-                ``,
-                `Try <code>@${escapeHtml(env.BOT_USERNAME)} USD</code>`,
-                `or <code>@${escapeHtml(env.BOT_USERNAME)} 10 USDT + 5 EUR</code>`,
-              ].join("\n"),
-              parse_mode: "HTML",
-              disable_web_page_preview: true,
-            },
-          };
+          const shown = normalizeSymbolQuery(query) || query;
+          result = richArticle(
+            "guest-unknown",
+            t(guestLang, "unknownSymbol"),
+            shown.slice(0, 80),
+            richUnknown(shown, guestLang),
+          );
         }
       }
     }
@@ -967,16 +992,18 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
   } catch (e) {
     console.error("guest answer failed", e);
     try {
-      await answerGuestQuery(env, msg.guest_query_id, {
-        type: "article",
-        id: "guest-fail",
-        title: "Something went wrong",
-        description: "Try again in a moment",
-        input_message_content: {
-          message_text: "⚠️ Couldn’t answer that guest query. Try again shortly.",
-          parse_mode: "HTML",
-        },
-      });
+      await answerGuestQuery(
+        env,
+        msg.guest_query_id,
+        richArticle(
+          "guest-fail",
+          "Dollar Chande",
+          guestLang === "fa" ? "دوباره تلاش کن" : "Try again in a moment",
+          guestLang === "fa"
+            ? "<p>الان جواب نداد. کمی بعد دوباره بفرست.</p>"
+            : "<p>Couldn’t answer that just now. Try again shortly.</p>",
+        ),
+      );
     } catch (e2) {
       console.error("guest fallback failed", e2);
     }
@@ -1024,7 +1051,20 @@ async function handleInline(
 
   const matches = searchSymbols(q, 8);
   if (!matches.length) {
-    await answerInlineQuery(env, inlineQueryId, [], 30);
+    const shown = normalizeSymbolQuery(q) || q;
+    await answerInlineQuery(
+      env,
+      inlineQueryId,
+      [
+        richArticle(
+          "unknown",
+          t(lang, "unknownSymbol"),
+          shown.slice(0, 80),
+          richUnknown(shown, lang),
+        ),
+      ],
+      30,
+    );
     return;
   }
 

@@ -144,6 +144,33 @@ export async function editRichMessage(
   }
 }
 
+/** Edit a rich message only the receiver can see (groups). */
+export async function editEphemeralRichMessage(
+  env: Env,
+  chatId: string | number,
+  receiverUserId: number,
+  ephemeralMessageId: number,
+  html: string,
+  extra: Record<string, unknown> = {},
+): Promise<true> {
+  try {
+    return await call(env, "editEphemeralMessageText", {
+      chat_id: chatId,
+      receiver_user_id: receiverUserId,
+      ephemeral_message_id: ephemeralMessageId,
+      rich_message: {
+        html,
+        skip_entity_detection: false,
+      },
+      ...extra,
+    });
+  } catch (e) {
+    const msg = e instanceof TelegramError ? e.message : String(e);
+    if (/not modified/i.test(msg)) return true;
+    throw e;
+  }
+}
+
 export async function pinChatMessage(
   env: Env,
   chatId: string | number,
@@ -231,6 +258,8 @@ export type TgMessage = {
   /** Unix seconds when the message was sent */
   date?: number;
   from?: { id: number; username?: string; first_name?: string };
+  /** Set when the user sent an ephemeral command in a group. */
+  ephemeral_message_id?: number;
   /** Guest Mode: answer with answerGuestQuery */
   guest_query_id?: string;
   entities?: Array<{ type: string; offset: number; length: number }>;

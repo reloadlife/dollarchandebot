@@ -9,7 +9,7 @@ import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
 
 /** Bump to push a new setMyCommands list on next cron. */
-const BOT_MENU_VER = "2026-07-13-hub-ui";
+const BOT_MENU_VER = "2026-09-28-ephemeral";
 const BOT_MENU_KV = "bot:menu_ver";
 
 async function ensureBotMenu(env: Env): Promise<void> {
