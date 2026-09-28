@@ -14,7 +14,7 @@ import {
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
-import { sendMessage, sendPhoto, sendRichMessage } from "../telegram/api";
+import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage, editRichMessage } from "../telegram/api";
 
 function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
@@ -275,6 +275,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     ...usdtSection(usdt, usd, exchanges, usdtAgeSec),
     `<p>📊 ${mood.emoji} <b>${escapeHtml(mood.label)}</b></p>`,
     `<p><i>${escapeHtml(mood.sub)}</i></p>`,
+    channelActionRow(env.BOT_USERNAME),
     `<p>🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}</p>`,
   ];
 
@@ -294,6 +295,15 @@ function htmlToPlain(html: string): string {
 
 /** Channel posts should not ding subscribers. */
 const CHANNEL_SILENT = { disable_notification: true } as const;
+/** Message id of the single pinned price list. */
+const KV_LIST_MSG = "cast:list_msg_id";
+
+/** Opens the bot on a symbol. Works from a channel, where callbacks do not. */
+export function channelActionRow(bot: string): string {
+  const button = (id: string, label: string) =>
+    `<tg-button type="url" url="https://t.me/${escapeHtml(bot)}?start=${id}">${label}</tg-button>`;
+  return `<tg-button-row>${button("USD", "دلار")}${button("USDT", "تتر")}${button("GOLD18", "طلا")}${button("EMAMI", "سکه")}</tg-button-row>`;
+}
 
 export async function castPriceList(env: Env): Promise<void> {
   if (!env.TELEGRAM_CHANNEL_ID) {
@@ -301,12 +311,28 @@ export async function castPriceList(env: Env): Promise<void> {
   }
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
+  const existing = await env.CACHE.get(KV_LIST_MSG);
+  if (existing && Number(existing) > 0) {
+    try {
+      await editRichMessage(env, chatId, Number(existing), text);
+      return;
+    } catch (e) {
+      console.error("edit pinned list failed, sending a new one", e);
+    }
+  }
+  let messageId: number;
   try {
-    await sendRichMessage(env, chatId, text, CHANNEL_SILENT);
+    messageId = (await sendRichMessage(env, chatId, text, CHANNEL_SILENT)).message_id;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("castPriceList rich failed, plain fallback", { chatId, err: msg });
-    await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT);
+    messageId = (await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT)).message_id;
+  }
+  await env.CACHE.put(KV_LIST_MSG, String(messageId));
+  try {
+    await pinChatMessage(env, chatId, messageId);
+  } catch (e) {
+    console.error("pin price list failed", e);
   }
 }
 

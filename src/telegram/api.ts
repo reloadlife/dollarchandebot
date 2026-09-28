@@ -144,6 +144,18 @@ export async function editRichMessage(
   }
 }
 
+export async function pinChatMessage(
+  env: Env,
+  chatId: string | number,
+  messageId: number,
+): Promise<true> {
+  return call(env, "pinChatMessage", {
+    chat_id: chatId,
+    message_id: messageId,
+    disable_notification: true,
+  });
+}
+
 export async function editMessageReplyMarkup(
   env: Env,
   chatId: string | number,
