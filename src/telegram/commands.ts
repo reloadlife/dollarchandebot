@@ -13,29 +13,44 @@ export interface BotCommand {
 
 /** Primary menu — keep short; full list lives in /help */
 export const COMMANDS_EN: BotCommand[] = [
-  { command: "start", description: "Home · browse · alerts" },
-  { command: "help", description: "How to use the bot" },
-  { command: "symbols", description: "Browse symbols by category" },
-  { command: "exchanges", description: "USDT buy/sell by exchange" },
-  { command: "compare", description: "Compare two symbols" },
-  { command: "history", description: "7-day OHLC history" },
-  { command: "alert", description: "Price alert (once or every)" },
-  { command: "alerts", description: "Your alerts (tap to manage)" },
-  { command: "settings", description: "Language & default fee" },
-  { command: "calc", description: "Currency calculator" },
+  { command: "start", description: "🏠 Home" },
+  { command: "help", description: "❓ How to use the bot" },
+  { command: "symbols", description: "📋 Browse symbols" },
+  { command: "exchanges", description: "🏦 USDT by exchange" },
+  { command: "compare", description: "⚖️ Compare two symbols" },
+  { command: "history", description: "📅 7-day history" },
+  { command: "alert", description: "🔔 Price alert" },
+  { command: "alerts", description: "🔔 Your alerts" },
+  { command: "settings", description: "⚙️ Language and fee" },
+  { command: "key", description: "🔑 API key for plugins" },
+  { command: "calc", description: "🧮 Calculator" },
 ];
 
 export const COMMANDS_FA: BotCommand[] = [
-  { command: "start", description: "خانه · مرور · هشدار" },
-  { command: "help", description: "راهنمای کامل" },
-  { command: "symbols", description: "مرور نمادها بر اساس دسته" },
-  { command: "exchanges", description: "قیمت تتر در صرافی‌ها" },
-  { command: "compare", description: "مقایسه دو نماد" },
-  { command: "history", description: "تاریخچه ۷ روزه" },
-  { command: "alert", description: "هشدار قیمت (یک‌بار یا تکراری)" },
-  { command: "alerts", description: "هشدارها (مدیریت با دکمه)" },
-  { command: "settings", description: "زبان و کارمزد" },
-  { command: "calc", description: "ماشین‌حساب ارز" },
+  { command: "start", description: "🏠 خانه" },
+  { command: "help", description: "❓ راهنما" },
+  { command: "symbols", description: "📋 نمادها" },
+  { command: "exchanges", description: "🏦 تتر در صرافی‌ها" },
+  { command: "compare", description: "⚖️ مقایسه دو نماد" },
+  { command: "history", description: "📅 تاریخچه ۷ روز" },
+  { command: "alert", description: "🔔 هشدار قیمت" },
+  { command: "alerts", description: "🔔 هشدارهای شما" },
+  { command: "settings", description: "⚙️ زبان و کارمزد" },
+  { command: "key", description: "🔑 کلید API" },
+  { command: "calc", description: "🧮 ماشین‌حساب" },
+];
+
+/** Shown in groups instead of the private command list. */
+export const GROUP_COMMANDS_EN: BotCommand[] = [
+  { command: "every", description: "⏱ Post the board on a timer" },
+  { command: "start", description: "🏠 Price now" },
+  { command: "help", description: "❓ Help" },
+];
+
+export const GROUP_COMMANDS_FA: BotCommand[] = [
+  { command: "every", description: "⏱ پیام گروه، با فاصله" },
+  { command: "start", description: "🏠 نرخ الان" },
+  { command: "help", description: "❓ راهنما" },
 ];
 
 const SHORT_EN = "Free-market FX, gold & USDT · charts · calc";
@@ -62,6 +77,10 @@ const DESC_FA = [
   "",
   "کانال: @AlanDollarChande",
 ].join("\n");
+
+/** Bump when the command list changes so the next cron calls setMyCommands. */
+export const BOT_MENU_VER = "2026-09-29-icons";
+export const BOT_MENU_KV = "bot:menu_ver";
 
 /** language_code for setMyCommands / descriptions. Empty = default (fallback). */
 const LOCALES: Array<{ code?: string; commands: BotCommand[]; short: string; desc: string }> = [
@@ -93,10 +112,30 @@ export async function setupBotMenu(env: Env): Promise<{ ok: true; locales: strin
     done.push(tag);
   }
 
+  const groupLocales: Array<{ code?: string; commands: BotCommand[] }> = [
+    { commands: GROUP_COMMANDS_EN },
+    { code: "en", commands: GROUP_COMMANDS_EN },
+    { code: "fa", commands: GROUP_COMMANDS_FA },
+  ];
+  for (const loc of groupLocales) {
+    await callTelegram(env, "setMyCommands", {
+      commands: loc.commands,
+      ...(loc.code ? { language_code: loc.code } : {}),
+      scope: { type: "all_group_chats" },
+    });
+  }
+
   // Menu button = commands list (opens "/" menu)
   await callTelegram(env, "setChatMenuButton", {
     menu_button: { type: "commands" },
   });
 
   return { ok: true, locales: done };
+}
+
+/** setMyCommands now, and record the version so cron does not repeat it. */
+export async function publishBotMenu(env: Env): Promise<{ ok: true; locales: string[] }> {
+  const menu = await setupBotMenu(env);
+  await env.CACHE.put(BOT_MENU_KV, BOT_MENU_VER);
+  return menu;
 }

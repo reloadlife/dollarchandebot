@@ -1,53 +1,60 @@
 import Link from "next/link";
-import { LiveHero } from "@/components/live-hero";
-import { API_BASE, BOT_URL, CHANNEL_URL } from "@/lib/rates";
+import { PluginPicker } from "@/components/plugin-picker";
+import { Totem } from "@/components/totem";
+import { BOT_URL, CHANNEL_URL } from "@/lib/rates";
+
+const primary =
+  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[16px] bg-brand px-4 text-sm font-semibold text-brand-foreground transition-transform duration-150 ease-out hover:brightness-110 active:scale-[0.98]";
+const quiet =
+  "inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-[16px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-transform duration-150 ease-out hover:bg-muted active:scale-[0.98]";
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12">
-      <p className="text-sm text-brand">بازار آزاد · تومان</p>
-      <h1 className="mt-2 max-w-xl text-3xl leading-tight">نرخ ارز، طلا و تتر، هر پنج دقیقه.</h1>
-      <p className="mt-3 max-w-lg text-muted-foreground">
-        همان عددی که کانال و ربات نشان می‌دهند، این‌جا روی تابلو است و از API هم خوانده می‌شود.
-      </p>
-
-      <section className="mt-10 border-t border-border pt-8">
-        <LiveHero />
+    <main>
+      <section className="totem-scene mx-auto grid max-w-6xl items-start gap-10 px-4 pb-8 pt-8 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-14 lg:pb-16 lg:pt-12">
+        <div>
+          <h1 className="text-balance text-4xl font-semibold leading-[1.25] lg:text-[2.65rem]">
+            نرخ دلار، داخل قیمت فروشگاه.
+          </h1>
+          <p className="mt-4 max-w-[36ch] text-base leading-8 text-muted-foreground">
+            افزونه‌های رایگان وردپرس، ووکامرس و WHMCS قیمت فروشگاه را با نرخ بازار آزاد تازه می‌کنند.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a href="#plugins" className={primary}>
+              انتخاب افزونه
+            </a>
+            <Link href="/board/" className={quiet}>
+              دیدن تابلو
+            </Link>
+          </div>
+        </div>
+        <Totem />
       </section>
 
-      <section className="mt-12 grid gap-8 border-t border-border pt-8 md:grid-cols-2">
-        <div>
-          <h2 className="text-lg">تابلو</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            همه‌ی نمادها، اختلاف با تیک قبل، و نمودار ۲۴ ساعت. صرافی‌های تتر جدا هستند: خرید یعنی تومانِ پرداختی.
-          </p>
-          <Link
-            href="/board/"
-            className="mt-4 inline-flex h-10 items-center rounded-control bg-brand px-4 text-sm font-semibold text-brand-foreground"
-          >
-            باز کردن تابلو
-          </Link>
-        </div>
-        <div>
-          <h2 className="text-lg">API</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            خواندنی و بدون کلید. پاسخ یک دقیقه در لبه‌ی شبکه cache می‌شود. واحد همه‌ی قیمت‌ها تومان است.
-          </p>
-          <pre className="mt-4 overflow-x-auto rounded-xl border border-border bg-card p-3 text-xs leading-6" dir="ltr">
-            {`curl ${API_BASE}/api/v1/latest`}
-          </pre>
-          <Link
-            href="/developers/"
-            className="mt-4 inline-flex h-10 items-center rounded-control border border-input px-4 text-sm font-semibold"
-          >
-            راهنمای API
-          </Link>
-        </div>
+      <section id="plugins" className="scroll-mt-20 mx-auto max-w-6xl px-4 py-16">
+        <h2 className="max-w-[18ch] text-3xl font-semibold leading-snug">قیمت فروشگاه با همین نرخ عوض می‌شود.</h2>
+        <p className="mt-3 max-w-[42ch] text-muted-foreground">یکی را انتخاب کن. هر سه رایگان‌اند. کلید را با /key از ربات بگیر.</p>
+        <PluginPicker />
       </section>
 
-      <footer className="mt-16 flex gap-4 border-t border-border pt-6 text-sm text-muted-foreground">
-        <a href={CHANNEL_URL}>کانال</a>
-        <a href={BOT_URL}>ربات</a>
+      <section className="mx-auto max-w-6xl px-4 pb-20">
+        <h2 className="text-2xl font-semibold">همان نرخ، برای کد</h2>
+        <p className="mt-3 max-w-[42ch] text-muted-foreground">کلید را ربات می‌دهد. قیمت‌ها تومان است.</p>
+        <Link href="/developers/" className="mt-4 inline-flex text-sm font-semibold text-brand">
+          راهنمای API
+        </Link>
+      </section>
+
+      <footer className="mx-auto flex max-w-6xl gap-5 border-t border-border px-4 py-6 text-sm text-muted-foreground">
+        <Link href="/board/" className="hover:text-foreground">
+          تابلو
+        </Link>
+        <a href={CHANNEL_URL} className="hover:text-foreground">
+          کانال
+        </a>
+        <a href={BOT_URL} className="hover:text-foreground">
+          ربات
+        </a>
       </footer>
     </main>
   );

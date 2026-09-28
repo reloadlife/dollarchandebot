@@ -126,7 +126,13 @@ def main() -> None:
         {
             "type": "plain_text",
             "name": "PUBLIC_BASE_URL",
-            "text": "https://dollarchande.mamaddev.workers.dev",
+            "text": "https://api.dollarchande.live",
+        },
+        {
+            "type": "ratelimit",
+            "name": "API_RATE_LIMIT",
+            "namespace_id": "841001",
+            "simple": {"limit": 60, "period": 60},
         },
     ]
     # Keep all existing secrets (type secret_text) by name

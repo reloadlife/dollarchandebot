@@ -171,15 +171,14 @@ export async function editEphemeralRichMessage(
   }
 }
 
-export async function pinChatMessage(
+export async function unpinChatMessage(
   env: Env,
   chatId: string | number,
   messageId: number,
 ): Promise<true> {
-  return call(env, "pinChatMessage", {
+  return call(env, "unpinChatMessage", {
     chat_id: chatId,
     message_id: messageId,
-    disable_notification: true,
   });
 }
 
@@ -241,7 +240,13 @@ export async function setWebhook(
   return call(env, "setWebhook", {
     url,
     secret_token: secret,
-    allowed_updates: ["message", "inline_query", "guest_message", "callback_query"],
+    allowed_updates: [
+      "message",
+      "inline_query",
+      "guest_message",
+      "callback_query",
+      "my_chat_member",
+    ],
     // drop backlog on (re)register so we don't replay dead updates
     drop_pending_updates: dropPending,
   });
@@ -285,6 +290,12 @@ export type TgUpdate = {
     from: { id: number; username?: string };
   };
   callback_query?: TgCallbackQuery;
+  my_chat_member?: {
+    chat: { id: number; type: string; title?: string };
+    from: { id: number };
+    old_chat_member?: { status?: string };
+    new_chat_member?: { status?: string; user?: { is_bot?: boolean } };
+  };
 };
 
 export async function answerCallbackQuery(

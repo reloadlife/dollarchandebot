@@ -2,23 +2,28 @@ import type { Env, JobMessage } from "./env";
 import { handleJob, runScrapeAndCast } from "./jobs";
 import { handleUpdate } from "./telegram/bot";
 import type { TgUpdate } from "./telegram/api";
-import { setWebhook } from "./telegram/api";
-import { setupBotMenu } from "./telegram/commands";
+import { callTelegram, setWebhook } from "./telegram/api";
+import { BOT_MENU_KV, BOT_MENU_VER, publishBotMenu } from "./telegram/commands";
 import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
 import { handlePublicApi } from "./api/public";
 
-/** Bump to push a new setMyCommands list on next cron. */
-const BOT_MENU_VER = "2026-09-28-ephemeral";
-const BOT_MENU_KV = "bot:menu_ver";
+/** So the bot notices when it is added to a group. Does not drop queued updates. */
+async function ensureGroupUpdates(env: Env): Promise<void> {
+  const info = await callTelegram<{ url?: string; allowed_updates?: string[] }>(env, "getWebhookInfo");
+  if (!info.url) return;
+  const have = new Set(info.allowed_updates ?? []);
+  if (have.has("my_chat_member") && have.has("message")) return;
+  await setWebhook(env, info.url, env.TELEGRAM_WEBHOOK_SECRET, false);
+  console.log("webhook updates now include my_chat_member");
+}
 
 async function ensureBotMenu(env: Env): Promise<void> {
   try {
     const cur = await env.CACHE.get(BOT_MENU_KV);
     if (cur === BOT_MENU_VER) return;
-    await setupBotMenu(env);
-    await env.CACHE.put(BOT_MENU_KV, BOT_MENU_VER);
+    await publishBotMenu(env);
     console.log("bot menu updated", BOT_MENU_VER);
   } catch (e) {
     console.error("ensureBotMenu", e);
@@ -79,7 +84,7 @@ export default {
       }
       const hook = `${url.origin}/telegram/webhook`;
       await setWebhook(env, hook, env.TELEGRAM_WEBHOOK_SECRET);
-      const menu = await setupBotMenu(env);
+      const menu = await publishBotMenu(env);
       return Response.json({ ok: true, webhook: hook, menu });
     }
 
@@ -89,7 +94,7 @@ export default {
       if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
         return new Response("unauthorized", { status: 401 });
       }
-      const menu = await setupBotMenu(env);
+      const menu = await publishBotMenu(env);
       return Response.json(menu);
     }
 
@@ -202,6 +207,7 @@ export default {
     const at = typeof event.scheduledTime === "number" ? event.scheduledTime : Date.now();
     // Re-register slash command list when version bumps (no host-side secrets needed)
     ctx.waitUntil(ensureBotMenu(env));
+    ctx.waitUntil(ensureGroupUpdates(env));
     // Reachability probe once an hour, as its own queue message so it gets a
     // fresh subrequest budget instead of eating the scrape's.
     // Hourly now that the candidate matrix has settled. Keeps reporting when a

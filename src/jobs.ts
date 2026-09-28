@@ -10,6 +10,7 @@ import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
 import { getSettings } from "./db/settings";
 import { cast6hCharts, castDaily, castPriceList } from "./cast/messages";
+import { runGroupFeeds } from "./group/feeds";
 import { sendMessage } from "./telegram/api";
 import { formatPrice } from "./lib/format";
 import { t } from "./lib/i18n";
@@ -223,6 +224,13 @@ export async function runCasts(env: Env, force = false, atMs = Date.now()): Prom
     }
     // Mark day only after both succeed so retries re-run on failure
     await kvPut(env, KV_LAST_CHART_DAY, dayKey);
+  }
+
+  try {
+    const groups = await runGroupFeeds(env, now);
+    if (groups) extra += ` +groups:${groups}`;
+  } catch (e) {
+    console.error("group feeds failed", e);
   }
 
   return extra || " (no cast due)";

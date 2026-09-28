@@ -14,7 +14,7 @@ import {
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
-import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage, editRichMessage } from "../telegram/api";
+import { sendMessage, sendPhoto, sendRichMessage, unpinChatMessage } from "../telegram/api";
 import { em } from "../telegram/emoji";
 
 function unit(env: Env): string {
@@ -175,7 +175,7 @@ function pairCell(name: string, price: number): TableCell {
 
 /**
  * تتر on the channel: price, gap versus دلار, where to buy and sell.
- * The full venue book stays collapsed so the pinned post stays scannable.
+ * The full venue book stays collapsed so each post stays scannable.
  */
 export function renderUsdtSection(
   usdtMid: number | undefined,
@@ -312,14 +312,14 @@ function htmlToPlain(html: string): string {
 
 /** Channel posts should not ding subscribers. */
 const CHANNEL_SILENT = { disable_notification: true } as const;
-/** Message id of the single pinned price list. */
+/** Legacy id of the single edited list. Cleared once that post is unpinned. */
 const KV_LIST_MSG = "cast:list_msg_id";
 
 /** Opens the bot on a symbol. Works from a channel, where callbacks do not. */
 export function channelActionRow(bot: string): string {
-  const button = (id: string, label: string) =>
-    `<tg-button type="url" url="https://t.me/${escapeHtml(bot)}?start=${id}">${label}</tg-button>`;
-  return `<tg-button-row>${button("USD", "دلار")}${button("USDT", "تتر")}${button("GOLD18", "طلا")}${button("EMAMI", "سکه")}</tg-button-row>`;
+  const button = (id: string, slot: Parameters<typeof em>[0], label: string) =>
+    `<tg-button type="url" url="https://t.me/${escapeHtml(bot)}?start=${id}">${em(slot)} ${label}</tg-button>`;
+  return `<tg-button-row>${button("USD", "price", "دلار")}${button("USDT", "buy", "تتر")}${button("GOLD18", "high", "طلا")}${button("EMAMI", "sparkle", "سکه")}</tg-button-row>`;
 }
 
 export async function castPriceList(env: Env): Promise<void> {
@@ -328,29 +328,29 @@ export async function castPriceList(env: Env): Promise<void> {
   }
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
-  const existing = await env.CACHE.get(KV_LIST_MSG);
-  if (existing && Number(existing) > 0) {
-    try {
-      await editRichMessage(env, chatId, Number(existing), text);
-      return;
-    } catch (e) {
-      console.error("edit pinned list failed, sending a new one", e);
-    }
-  }
-  let messageId: number;
+  await releaseLegacyPin(env, chatId);
   try {
-    messageId = (await sendRichMessage(env, chatId, text, CHANNEL_SILENT)).message_id;
+    await sendRichMessage(env, chatId, text, CHANNEL_SILENT);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("castPriceList rich failed, plain fallback", { chatId, err: msg });
-    messageId = (await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT)).message_id;
+    await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT);
   }
-  await env.CACHE.put(KV_LIST_MSG, String(messageId));
+}
+
+/** The list used to be one edited, pinned post. Unpin it once, then leave the channel as a history. */
+async function releaseLegacyPin(env: Env, chatId: string): Promise<void> {
+  const existing = await env.CACHE.get(KV_LIST_MSG);
+  const messageId = Number(existing);
+  if (!existing || !Number.isFinite(messageId) || messageId <= 0) return;
   try {
-    await pinChatMessage(env, chatId, messageId);
+    await unpinChatMessage(env, chatId, messageId);
   } catch (e) {
-    console.error("pin price list failed", e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("unpin price list failed", msg);
+    if (!/not found|not pinned|message_id_invalid/i.test(msg)) return;
   }
+  await env.CACHE.delete(KV_LIST_MSG);
 }
 
 export async function buildSymbolCaption(

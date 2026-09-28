@@ -29,6 +29,7 @@ import {
 } from "./rich";
 import type { LatestRow } from "../db/prices";
 import type { ChartRange } from "../chart/serve";
+import { CUSTOM_EMOJI_IDS, type EmojiSlot } from "./emoji";
 
 export type InlineBtn = {
   text: string;
@@ -37,6 +38,8 @@ export type InlineBtn = {
   switch_inline_query?: string;
   switch_inline_query_current_chat?: string;
   style?: "primary" | "success" | "danger" | "link";
+  /** Premium custom emoji shown before the label. */
+  icon_custom_emoji_id?: string;
   disabled?: boolean;
   /** Copies this text. Mutually exclusive with callback_data. */
   copy_text?: { text: string };
@@ -72,10 +75,15 @@ function btn(
   text: string,
   data: string,
   style?: InlineBtn["style"],
+  icon?: EmojiSlot,
 ): InlineBtn {
-  return style
-    ? { text, callback_data: data, style }
-    : { text, callback_data: data };
+  const iconId = icon ? CUSTOM_EMOJI_IDS[icon] : undefined;
+  return {
+    text,
+    callback_data: data,
+    ...(style && style !== "link" ? { style } : {}),
+    ...(iconId ? { icon_custom_emoji_id: iconId } : {}),
+  };
 }
 
 function chunk<T>(arr: T[], n: number): T[][] {
@@ -86,28 +94,45 @@ function chunk<T>(arr: T[], n: number): T[][] {
 
 // —— Keyboards ——
 
-export function homeKeyboard(env: Env, lang: Lang): InlineKeyboard {
+export function homeKeyboard(
+  env: Env,
+  lang: Lang,
+  quotes?: Map<string, { price: number }>,
+): InlineKeyboard {
+  const named = (key: "homeUsd" | "homeUsdt" | "homeGold" | "homeCoin", id: string) => {
+    const price = quotes?.get(id)?.price;
+    const name = t(lang, key);
+    return price == null ? name : `${name} ${formatPrice(price)}`;
+  };
   return {
     inline_keyboard: [
       [
-        btn(t(lang, "homeUsd"), "s:USD"),
-        btn(t(lang, "homeUsdt"), "s:USDT"),
+        btn(named("homeUsd", "USD"), "s:USD", "primary", "price"),
+        btn(named("homeUsdt", "USDT"), "s:USDT", undefined, "buy"),
       ],
       [
-        btn(t(lang, "homeGold"), "s:GOLD18"),
-        btn(t(lang, "homeCoin"), "s:EMAMI"),
+        btn(named("homeGold", "GOLD18"), "s:GOLD18", undefined, "high"),
+        btn(named("homeCoin", "EMAMI"), "s:EMAMI", undefined, "sparkle"),
       ],
-      [btn(t(lang, "uiExchanges"), "x"), btn(t(lang, "uiAlerts"), "a")],
       [
-        btn(t(lang, "uiBrowse"), "b:c"),
+        btn(t(lang, "uiExchanges"), "x", undefined, "chart"),
+        btn(t(lang, "uiAlerts"), "a", undefined, "clock"),
+      ],
+      [
+        btn(t(lang, "uiBrowse"), "b:c", undefined, "chart"),
         {
           text: t(lang, "uiSearch"),
           switch_inline_query_current_chat: "",
+          icon_custom_emoji_id: CUSTOM_EMOJI_IDS.flat,
         },
       ],
       [
-        btn(t(lang, "uiSettings"), "set"),
-        { text: t(lang, "uiChannel"), url: channelUrl(env) },
+        btn(t(lang, "uiSettings"), "set", undefined, "flat"),
+        {
+          text: t(lang, "uiChannel"),
+          url: channelUrl(env),
+          icon_custom_emoji_id: CUSTOM_EMOJI_IDS.channel,
+        },
       ],
     ],
   };
@@ -116,10 +141,10 @@ export function homeKeyboard(env: Env, lang: Lang): InlineKeyboard {
 export function categoriesKeyboard(lang: Lang): InlineKeyboard {
   return {
     inline_keyboard: [
-      [btn(t(lang, "uiCatFx"), "b:fx:0"), btn(t(lang, "uiCatGold"), "b:gold:0")],
+      [btn(t(lang, "uiCatFx"), "b:fx:0", undefined, "price"), btn(t(lang, "uiCatGold"), "b:gold:0", undefined, "high")],
       [
-        btn(t(lang, "uiCatCoin"), "b:coin:0"),
-        btn(t(lang, "uiCatCrypto"), "b:crypto:0"),
+        btn(t(lang, "uiCatCoin"), "b:coin:0", undefined, "sparkle"),
+        btn(t(lang, "uiCatCrypto"), "b:crypto:0", undefined, "buy"),
       ],
       [
         {
@@ -180,13 +205,14 @@ export function symbolCardKeyboard(
       {
         text: `${t(lang, "uiCopy")} ${formatPrice(price)}`,
         copy_text: { text: String(Math.round(price)) },
+        icon_custom_emoji_id: CUSTOM_EMOJI_IDS.price,
       },
     ]);
   }
   rows.push([
-    btn(t(lang, "uiBack"), back),
-    btn(t(lang, "uiSettings"), "set"),
-    btn(t(lang, "uiHome"), "h"),
+    btn(t(lang, "uiBack"), back, undefined, "flat"),
+    btn(t(lang, "uiSettings"), "set", undefined, "flat"),
+    btn(t(lang, "uiHome"), "h", undefined, "sparkle"),
   ]);
   return { inline_keyboard: rows };
 }
@@ -205,7 +231,7 @@ export function historyKeyboard(lang: Lang, symbolId: string): InlineKeyboard {
 export function exchangesKeyboard(lang: Lang): InlineKeyboard {
   return {
     inline_keyboard: [
-      [btn(t(lang, "uiAlerts"), "a"), btn(t(lang, "uiHome"), "h")],
+      [btn(t(lang, "uiAlerts"), "a", undefined, "clock"), btn(t(lang, "uiHome"), "h", undefined, "sparkle")],
     ],
   };
 }
@@ -220,7 +246,7 @@ export function alertsKeyboard(lang: Lang, rows: AlertRow[]): InlineKeyboard {
     );
     kb.push([
       { text: label, callback_data: "noop", disabled: true },
-      btn(t(lang, "uiDelete"), `a:d:${a.id}`, "danger"),
+      btn(t(lang, "uiDelete"), `a:d:${a.id}`, "danger", "down"),
     ]);
   }
   kb.push([
@@ -233,7 +259,7 @@ export function alertsKeyboard(lang: Lang, rows: AlertRow[]): InlineKeyboard {
 export function alertHelpKeyboard(lang: Lang): InlineKeyboard {
   return {
     inline_keyboard: [
-      [btn(t(lang, "uiAlerts"), "a"), btn(t(lang, "uiHome"), "h")],
+      [btn(t(lang, "uiAlerts"), "a", undefined, "clock"), btn(t(lang, "uiHome"), "h", undefined, "sparkle")],
     ],
   };
 }
@@ -265,7 +291,7 @@ export function helpKeyboard(lang: Lang): InlineKeyboard {
 /** Compact footer for free-text replies (price/calc) */
 export function menuOnlyKeyboard(lang: Lang): InlineKeyboard {
   return {
-    inline_keyboard: [[btn(t(lang, "uiMenu"), "h")]],
+    inline_keyboard: [[btn(t(lang, "uiMenu"), "h", undefined, "sparkle")]],
   };
 }
 
@@ -291,7 +317,7 @@ export async function screenHome(env: Env, lang: Lang): Promise<Screen> {
   );
   return {
     html: richHome(env, lang, quotes),
-    keyboard: homeKeyboard(env, lang),
+    keyboard: homeKeyboard(env, lang, quotes),
   };
 }
 

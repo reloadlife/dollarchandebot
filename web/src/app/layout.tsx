@@ -4,8 +4,9 @@ import { vazirmatn } from "./fonts";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://dollarchande.live"),
   title: "دلارچنده",
-  description: "نرخ بازار آزاد به تومان، تابلو و API.",
+  description: "نرخ بازار آزاد به تومان. افزونه رایگان وردپرس، ووکامرس و WHMCS، با کلید از ربات.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

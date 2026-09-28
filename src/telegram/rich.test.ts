@@ -65,7 +65,8 @@ test("english symbol card keeps english book labels and a 24h caption", () => {
   expect(html).toContain("Toman");
   expect(html).toContain("Buy");
   expect(html).toContain("Day high");
-  expect(html).toContain(">24h<");
+  expect(html).toContain("24h</tg-button>");
+  expect(html).toContain("<tg-emoji");
 });
 
 test("exchange and history cards follow the chat language", () => {

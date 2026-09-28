@@ -1,0 +1,8 @@
+{
+  "schema": "1.0",
+  "type": "whmcs-addons",
+  "name": "dollarchande",
+  "version": "1.0.0",
+  "license": "GPL-2.0-or-later",
+  "description": "Writes the DollarChande free-market rate into one WHMCS currency."
+}

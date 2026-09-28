@@ -37,13 +37,14 @@ function cardActionRow(
   }
   const style = (on: boolean) => (on ? ` style="primary"` : "");
   // Two short rows. A fifth button on one row was clipped to "C…" and could not be tapped.
+  const labeled = (slot: Parameters<typeof em>[0], label: string) => `${em(slot)} ${escapeHtml(label)}`;
   return `<tg-button-row>
-<tg-button type="callback_data"${style(range === "24h")} data="s:${symbolId}:24h">24h</tg-button>
-<tg-button type="callback_data"${style(range === "7d")} data="s:${symbolId}:7d">7d</tg-button>
+<tg-button type="callback_data"${style(range === "24h")} data="s:${symbolId}:24h">${labeled("clock", "24h")}</tg-button>
+<tg-button type="callback_data"${style(range === "7d")} data="s:${symbolId}:7d">${labeled("chart", "7d")}</tg-button>
 </tg-button-row>
 <tg-button-row>
-<tg-button type="callback_data" data="s:${symbolId}:hi">${escapeHtml(t(lang, "uiHistory"))}</tg-button>
-<tg-button type="callback_data" data="a:new:${symbolId}">${escapeHtml(t(lang, "uiAlertNew"))}</tg-button>
+<tg-button type="callback_data" data="s:${symbolId}:hi">${labeled("chart", t(lang, "uiHistory"))}</tg-button>
+<tg-button type="callback_data" data="a:new:${symbolId}">${labeled("clock", t(lang, "uiAlertNew"))}</tg-button>
 </tg-button-row>`;
 }
 
@@ -74,26 +75,17 @@ export function richHome(
   lang: Lang,
   quotes: Map<string, { price: number; prev_price: number | null }>,
 ): string {
-  const unit = escapeHtml(t(lang, "cardUnit"));
-  const table = compactTable([
-    [
-      { text: "", header: true },
-      { text: unit, header: true, align: "right" },
-      { text: escapeHtml(t(lang, "cardTick")), header: true, align: "right" },
-    ],
-    ...HOME_QUOTES.map(({ id, key }) => {
-      const row = quotes.get(id);
-      const delta = row ? formatDeltaQuiet(row.price, row.prev_price) : null;
-      return [
-        { text: escapeHtml(t(lang, key)) },
-        { text: row ? formatPrice(row.price) : "—", align: "right" as const, bold: true },
-        { text: escapeHtml(delta ?? "—"), align: "right" as const },
-      ];
-    }),
-  ]);
+  const title = lang === "fa" ? "دلارچنده" : "DollarChande";
+  const lines = HOME_QUOTES.map(({ id, key }) => {
+    const row = quotes.get(id);
+    const price = row ? formatPrice(row.price) : (lang === "fa" ? "نیامده" : "waiting");
+    const delta = row ? formatDeltaQuiet(row.price, row.prev_price) : null;
+    const change = delta ? ` ${escapeHtml(delta)}` : "";
+    return `<p><b>${escapeHtml(t(lang, key))}</b> ${price}${change}</p>`;
+  }).join("\n");
   return `
-<h2>Dollar Chande</h2>
-${table}
+<h2>${title}</h2>
+${lines}
 <p>${t(lang, "homeHint")}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -144,6 +136,8 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <ul>
 <li><code>/lang fa</code> · <code>/lang en</code></li>
 <li><code>/settings</code> — زبان و کارمزد</li>
+<li><code>/key</code> — کلید API افزونه · <code>/key new</code> کلید تازه</li>
+<li><code>/every 1h</code> — در گروه، تابلو با فاصله. <code>/every off</code> توقف</li>
 </ul>
 
 <h3>بیشتر</h3>
@@ -201,6 +195,8 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <ul>
 <li><code>/lang en</code> · <code>/lang fa</code></li>
 <li><code>/settings</code> — language &amp; fee</li>
+<li><code>/key</code> — API key for plugins · <code>/key new</code> rotate</li>
+<li><code>/every 1h</code> — in a group, post the board on a timer. <code>/every off</code> stops</li>
 </ul>
 
 <h3>Also</h3>

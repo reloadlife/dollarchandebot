@@ -1,5 +1,5 @@
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "https://dollarchande.mamaddev.workers.dev";
+  process.env.NEXT_PUBLIC_API_BASE ?? "https://api.dollarchande.live";
 
 export const BOT_URL = "https://t.me/DollarChandeBot";
 export const CHANNEL_URL = "https://t.me/AlanDollarChande";

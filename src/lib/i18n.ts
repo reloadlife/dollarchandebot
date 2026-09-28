@@ -107,6 +107,20 @@ const en = {
   alertAskPct: "Send the percent move. For example <code>2</code>",
   alertPickMode: "Once, or again after the price comes back?",
   uiAlertNew: "Alert",
+  everyUsage:
+    "In a group, an admin sends:\n<code>/every 1h</code> the board\n<code>/every 30m USD</code> one symbol\n<code>/every off</code> stop\nIntervals: 15m, 30m, 1h, 3h, 6h, 1d.",
+  everySet: "This group will get a new silent message on that interval.",
+  everyOff: "Group posts stopped.",
+  everyNeedAdmin: "Only a group admin can set this.",
+  everyPrivate: "Add the bot to a group, then send /every there.",
+  everyBadSymbol: "Unknown symbol.",
+  everyBadInterval: "Use 15m, 30m, 1h, 3h, 6h, or 1d.",
+  groupWelcome:
+    "DollarChande is in this group.\nAn admin can schedule posts:\n<code>/every 1h</code>\n<code>/every 30m USD</code>\n<code>/every off</code>\nEach post is a new silent message.",
+  setCommandsOk: "Commands are set.",
+  setCommandsDenied: "Only a channel admin can do this.",
+  setCommandsPrivate: "Send /setcommands in a private chat.",
+  setCommandsFail: "Telegram did not accept the command list.",
 } as const;
 
 const fa: Record<keyof typeof en, string> = {
@@ -215,6 +229,20 @@ const fa: Record<keyof typeof en, string> = {
   alertAskPct: "درصد حرکت را بفرست. مثلاً <code>2</code>",
   alertPickMode: "یک‌بار، یا دوباره بعد از برگشت قیمت؟",
   uiAlertNew: "هشدار",
+  everyUsage:
+    "در گروه، مدیر می‌نویسد:\n<code>/every 1h</code> تابلو\n<code>/every 30m USD</code> یک نماد\n<code>/every off</code> توقف\nفاصله: ۱۵ دقیقه، ۳۰ دقیقه، ۱ ساعت، ۳ ساعت، ۶ ساعت، ۱ روز.",
+  everySet: "از این به بعد، هر بار یک پیام تازه و بی‌صدا می‌آید.",
+  everyOff: "پیام زمان‌بندی‌شده متوقف شد.",
+  everyNeedAdmin: "فقط مدیر گروه می‌تواند این را بگذارد.",
+  everyPrivate: "ربات را به گروه اضافه کن، بعد همان‌جا /every را بفرست.",
+  everyBadSymbol: "نماد ناشناخته.",
+  everyBadInterval: "فاصله باید ۱۵د، ۳۰د، ۱س، ۳س، ۶س یا ۱روز باشد.",
+  groupWelcome:
+    "دلارچنده به گروه آمد.\nمدیر می‌تواند زمان بگذارد:\n<code>/every 1h</code> تابلو\n<code>/every 30m USD</code> فقط یک نماد\n<code>/every off</code> توقف\nهر بار یک پیام تازه، بدون صدا.",
+  setCommandsOk: "دستورها ثبت شد.",
+  setCommandsDenied: "فقط مدیر کانال می‌تواند این را بزند.",
+  setCommandsPrivate: "/setcommands را در گفتگوی خصوصی بفرست.",
+  setCommandsFail: "تلگرام فهرست دستورها را نگرفت.",
 };
 
 export type MsgKey = keyof typeof en;

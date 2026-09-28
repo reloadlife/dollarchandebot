@@ -15,6 +15,7 @@ import {
   type TgMessage,
   type TgUpdate,
 } from "./api";
+import { apiKeyIdForChat, rotateApiKey } from "../api/keys";
 import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
 import {
   evaluateCalc,
@@ -64,6 +65,16 @@ import {
 } from "./alert-flow";
 import { isGroupChat, packEphemeral } from "./ephemeral";
 import {
+  buildFeedHtml,
+  deleteGroupFeed,
+  intervalLabel,
+  isChatAdmin,
+  parseEvery,
+  saveGroupFeed,
+} from "../group/feeds";
+import { publishBotMenu } from "./commands";
+
+import {
   menuOnlyKeyboard,
   parseCallback,
   screenAlertAmount,
@@ -109,6 +120,109 @@ function replyParams(messageId?: number): Record<string, unknown> {
   return { reply_parameters: { message_id: messageId } };
 }
 
+async function handleBotJoined(
+  env: Env,
+  update: NonNullable<TgUpdate["my_chat_member"]>,
+): Promise<void> {
+  const chat = update.chat;
+  if (chat.type !== "group" && chat.type !== "supergroup") return;
+  if (env.TELEGRAM_CHANNEL_ID && String(chat.id) === String(env.TELEGRAM_CHANNEL_ID)) return;
+  const next = update.new_chat_member?.status;
+  const prev = update.old_chat_member?.status;
+  const joined = (next === "member" || next === "administrator") && (prev === "left" || prev === "kicked" || !prev);
+  if (!joined) {
+    if (next === "left" || next === "kicked") await deleteGroupFeed(env, String(chat.id));
+    return;
+  }
+  await sendMessage(env, chat.id, t("fa", "groupWelcome"), { disable_web_page_preview: true });
+}
+
+async function handleEvery(
+  env: Env,
+  chatId: number,
+  msg: TgMessage,
+  arg: string,
+  lang: Lang,
+): Promise<void> {
+  const fa = lang === "fa";
+  if (!isGroupChat(msg.chat.type)) {
+    await sendMessage(env, chatId, t(lang, "everyPrivate"));
+    return;
+  }
+  const parsed = parseEvery(arg);
+  if (!parsed.ok) {
+    const key = parsed.reason === "interval" ? "everyBadInterval" : parsed.reason === "symbol" ? "everyBadSymbol" : "everyUsage";
+    await sendMessage(env, chatId, t(lang, key));
+    return;
+  }
+  const userId = msg.from?.id;
+  if (userId == null || !(await isChatAdmin(env, chatId, userId))) {
+    await sendMessage(env, chatId, t(lang, "everyNeedAdmin"));
+    return;
+  }
+  if (parsed.off) {
+    await deleteGroupFeed(env, String(chatId));
+    await sendMessage(env, chatId, t(lang, "everyOff"));
+    return;
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  await saveGroupFeed(env, String(chatId), parsed.everyMin, parsed.symbol, nowSec);
+  const html = await buildFeedHtml(env, parsed.symbol, true);
+  try {
+    await sendRichMessage(env, chatId, html, { disable_notification: true });
+  } catch (e) {
+    console.error("group feed first post", e);
+  }
+  const what = parsed.symbol ?? (fa ? "تابلو" : "board");
+  await sendMessage(
+    env,
+    chatId,
+    `${t(lang, "everySet")}\n${intervalLabel(parsed.everyMin, fa)} · ${escapeHtml(what)}`,
+  );
+}
+
+async function handleSetCommands(
+  env: Env,
+  chatId: number,
+  msg: TgMessage,
+  lang: Lang,
+): Promise<void> {
+  const quiet = packEphemeral(
+    isGroupChat(msg.chat.type) && msg.ephemeral_message_id && msg.from
+      ? { receiverUserId: msg.from.id, ephemeralMessageId: msg.ephemeral_message_id }
+      : undefined,
+  );
+  if (msg.chat.type !== "private") {
+    await sendMessage(env, chatId, t(lang, "setCommandsPrivate"), quiet);
+    return;
+  }
+  const userId = msg.from?.id;
+  if (!userId || !env.TELEGRAM_CHANNEL_ID) {
+    await sendMessage(env, chatId, t(lang, "setCommandsDenied"));
+    return;
+  }
+  let admin = false;
+  try {
+    admin = await isChatAdmin(env, env.TELEGRAM_CHANNEL_ID, userId);
+  } catch (e) {
+    console.error("setcommands admin", e);
+    await sendMessage(env, chatId, t(lang, "setCommandsFail"));
+    return;
+  }
+  if (!admin) {
+    await sendMessage(env, chatId, t(lang, "setCommandsDenied"));
+    return;
+  }
+  try {
+    await publishBotMenu(env);
+  } catch (e) {
+    console.error("setcommands", e);
+    await sendMessage(env, chatId, t(lang, "setCommandsFail"));
+    return;
+  }
+  await sendMessage(env, chatId, t(lang, "setCommandsOk"));
+}
+
 function parseCommand(text: string): { cmd: string; arg: string } | null {
   if (!text.startsWith("/")) return null;
   const [head, ...rest] = text.slice(1).split(/\s+/);
@@ -145,6 +259,11 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
 
   if (update.callback_query) {
     await handleCallback(env, update.callback_query);
+    return;
+  }
+
+  if (update.my_chat_member) {
+    await handleBotJoined(env, update.my_chat_member);
     return;
   }
 
@@ -227,6 +346,34 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       return;
     }
     await showScreen(env, sendTarget, screenCategories(settings.lang));
+    return;
+  }
+
+  if (command?.cmd === "every") {
+    await handleEvery(env, chatId, msg, command.arg, settings.lang);
+    return;
+  }
+
+  if (command?.cmd === "setcommands") {
+    await handleSetCommands(env, chatId, msg, settings.lang);
+    return;
+  }
+
+  if (command?.cmd === "key" || command?.cmd === "apikey") {
+    const rotate = /^(new|rotate|reset)$/i.test(command.arg);
+    const existing = rotate ? null : await apiKeyIdForChat(env, String(chatId));
+    if (existing) {
+      const hint = settings.lang === "fa"
+        ? `یک کلید داری، شناسه <code>${escapeHtml(existing)}</code>.\nبرای کلید تازه: <code>/key new</code>\nکلید قبلی از کار می‌افتد.`
+        : `You already have a key, id <code>${escapeHtml(existing)}</code>.\nFor a new one: <code>/key new</code>\nThe old key stops working.`;
+      await sendMessage(env, chatId, hint, packEphemeral(sendTarget.ephemeral));
+      return;
+    }
+    const key = await rotateApiKey(env, String(chatId));
+    const body = settings.lang === "fa"
+      ? `کلید API:\n<code>${escapeHtml(key)}</code>\n\nدر افزونه همین را بگذار، یا:\n<code>Authorization: Bearer ${escapeHtml(key)}</code>\n\nحدود ۶۰ درخواست در دقیقه. این پیام را نگه دار. دوباره نشان داده نمی‌شود.`
+      : `API key:\n<code>${escapeHtml(key)}</code>\n\nPaste it into the plugin, or send:\n<code>Authorization: Bearer ${escapeHtml(key)}</code>\n\nAbout 60 requests a minute. Keep this message. It is not shown again.`;
+    await sendMessage(env, chatId, body, packEphemeral(sendTarget.ephemeral));
     return;
   }
 

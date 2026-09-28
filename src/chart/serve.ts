@@ -24,7 +24,7 @@ export function chartPublicUrl(
   range: ChartRange = "24h",
   nowSec = Math.floor(Date.now() / 1000),
 ): string {
-  const base = (env.PUBLIC_BASE_URL || "https://dollarchande.mamaddev.workers.dev").replace(/\/$/, "");
+  const base = (env.PUBLIC_BASE_URL || "https://api.dollarchande.live").replace(/\/$/, "");
   const bucket = align5m(nowSec);
   const q = range === "7d" ? `?r=7d&b=${bucket}` : `?b=${bucket}`;
   return `${base}/chart/${encodeURIComponent(symbolId)}.png${q}`;

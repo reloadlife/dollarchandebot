@@ -1,12 +1,13 @@
 /**
- * Public read API. The site on Pages calls this; anyone else can too.
- * Responses are edge-cached for a minute so a dashboard refresh does not
- * hit D1 on every request.
+ * Read API. The public site may call it without a key. Plugins and other
+ * clients send a key issued by the Telegram bot. Responses are edge-cached
+ * for a minute after the key and rate limit checks.
  */
 
 import type { Env } from "../env";
 import { listExchanges } from "../db/exchanges";
 import { getAllLatest, getLatest, getOhlcDays, getTicks24h, type LatestRow } from "../db/prices";
+import { findApiKey, isSiteOrigin, readApiKey } from "./keys";
 import { SYMBOLS, resolveSymbol, type SymbolDef } from "../symbols";
 
 const CACHE_SEC = 60;
@@ -14,7 +15,7 @@ const CACHE_SEC = 60;
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, OPTIONS",
-  "access-control-allow-headers": "content-type, accept",
+  "access-control-allow-headers": "content-type, accept, authorization, x-api-key",
   "access-control-max-age": "86400",
 };
 
@@ -71,12 +72,15 @@ function quote(row: LatestRow, s: SymbolDef | undefined) {
   };
 }
 
-function json(body: unknown, status = 200): Response {
+function json(body: unknown, status = 200, extra: Record<string, string> = {}): Response {
   return Response.json(body, {
     status,
     headers: {
       ...CORS,
-      "cache-control": status === 200 ? `public, max-age=${CACHE_SEC}` : "no-store",
+      "cache-control": status === 200 ? `private, max-age=${CACHE_SEC}` : "no-store",
+      // The zone must not store this. A shared hit would skip the key check.
+      "cdn-cache-control": "no-store",
+      ...extra,
     },
   });
 }
@@ -169,6 +173,9 @@ export async function handlePublicApi(
   }
   if (request.method !== "GET") return json({ error: "method_not_allowed" }, 405);
 
+  const gate = await authorize(request, env);
+  if (gate) return gate;
+
   const cacheKey = new Request(url.toString(), { method: "GET" });
   const hit = await caches.default.match(cacheKey);
   if (hit) return hit;
@@ -178,4 +185,23 @@ export async function handlePublicApi(
     ctx.waitUntil(caches.default.put(cacheKey, res.clone()));
   }
   return res;
+}
+
+/** Site visitors are limited by IP. Everyone else must present a bot-issued key. */
+async function authorize(request: Request, env: Env): Promise<Response | null> {
+  const site = isSiteOrigin(request.headers.get("origin"));
+  let limitKey: string;
+  if (site) {
+    limitKey = `ip:${request.headers.get("cf-connecting-ip") || "unknown"}`;
+  } else {
+    const raw = readApiKey(request);
+    if (!raw) return json({ error: "missing_api_key" }, 401);
+    const found = await findApiKey(env, raw);
+    if (!found) return json({ error: "invalid_api_key" }, 401);
+    limitKey = `key:${found.id}`;
+  }
+  if (!env.API_RATE_LIMIT) return null;
+  const { success } = await env.API_RATE_LIMIT.limit({ key: limitKey });
+  if (success) return null;
+  return json({ error: "rate_limited" }, 429, { "retry-after": "60" });
 }

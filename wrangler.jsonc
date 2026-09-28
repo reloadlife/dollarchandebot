@@ -9,6 +9,17 @@
   // Pure Worker = free cron + queues + D1. No Pages/static bloat.
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [
+    { "pattern": "api.dollarchande.live", "custom_domain": true }
+  ],
+
+  "ratelimits": [
+    {
+      "name": "API_RATE_LIMIT",
+      "namespace_id": "841001",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
 
   "vars": {
     "CHANNEL_USERNAME": "AlanDollarChande",
@@ -16,7 +27,7 @@
     // prices shown as Toman (bonbast/tetherland native unit)
     "PRICE_UNIT": "Toman",
     // HTTPS origin for <img> charts inside rich messages
-    "PUBLIC_BASE_URL": "https://dollarchande.mamaddev.workers.dev"
+    "PUBLIC_BASE_URL": "https://api.dollarchande.live"
   },
 
   "d1_databases": [

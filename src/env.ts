@@ -1,7 +1,13 @@
+export interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
+
 export interface Env {
   DB: D1Database;
   CACHE: KVNamespace;
   JOBS: Queue<JobMessage>;
+  /** Per API key, enforced at the Cloudflare edge. */
+  API_RATE_LIMIT: RateLimiter;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHANNEL_ID: string;
   TELEGRAM_WEBHOOK_SECRET?: string;
