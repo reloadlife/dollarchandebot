@@ -8,8 +8,11 @@ import { configureProxy, proxyConfigured } from "./lib/proxy";
 import { ingestScrapes, getLatest, type TetherSource } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
+import { getSettings } from "./db/settings";
 import { cast6hCharts, castDaily, castPriceList } from "./cast/messages";
 import { sendMessage } from "./telegram/api";
+import { formatPrice } from "./lib/format";
+import { t } from "./lib/i18n";
 
 /** Channel list interval (ms). Scrape is every 5m; list posts every 10m. */
 const LIST_CAST_EVERY_MS = 10 * 60 * 1000;
@@ -151,20 +154,19 @@ async function fireAlerts(env: Env): Promise<void> {
   // also any alert symbols
   const fired = await checkAlerts(env.DB, prices);
   for (const a of fired) {
+    const lang = (await getSettings(env.DB, a.chat_id)).lang;
     const dir =
       a.direction === "above"
-        ? `≥ ${a.threshold}`
+        ? `${t(lang, "dirAbove")} ${formatPrice(a.threshold)}`
         : a.direction === "below"
-          ? `≤ ${a.threshold}`
-          : `moved ≥ ${a.threshold}%`;
+          ? `${t(lang, "dirBelow")} ${formatPrice(a.threshold)}`
+          : `${t(lang, "dirMove")} ≥ ${a.threshold}%`;
     const modeNote =
-      a.mode === "once"
-        ? "\n<i>one-time · removed</i>"
-        : "\n<i>every · re-arms when condition clears</i>";
+      a.mode === "once" ? t(lang, "alertOnceNote") : t(lang, "alertRepeatNote");
     await sendMessage(
       env,
       a.chat_id,
-      `🔔 <b>Alert #${a.id}</b> <code>${a.symbol}</code>\nPrice <b>${a.price.toLocaleString("en-US")}</b> IRT (${dir})${modeNote}`,
+      `🔔 <b>${t(lang, "alertFired")} #${a.id}</b> <code>${a.symbol}</code>\n${t(lang, "alertPrice")} <b>${formatPrice(a.price)}</b> ${t(lang, "cardUnit")} (${dir})\n<i>${modeNote}</i>`,
     ).catch((e) => console.error("alert send", e));
   }
 }

@@ -9,7 +9,9 @@ import { SYMBOLS } from "../symbols";
 import type { LatestRow } from "../db/prices";
 import type { CalcResult } from "../lib/calc";
 import type { Lang } from "../db/settings";
+import type { ChartRange } from "../chart/serve";
 import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
+import { t } from "../lib/i18n";
 import { em } from "./emoji";
 
 function channelUrl(env: Env): string {
@@ -327,6 +329,7 @@ ${result.terms.map(termLine).join("\n")}
 export function richExchanges(
   env: Env,
   rows: Array<{ name: string; buy: number | null; sell: number | null; mid: number | null; updated_at: number }>,
+  lang: Lang = "en",
 ): string {
   const sorted = [...rows].sort((a, b) => (a.mid ?? 1e18) - (b.mid ?? 1e18));
   const lines = sorted
@@ -334,7 +337,7 @@ export function richExchanges(
       const buy = r.buy != null ? formatPrice(r.buy) : "—";
       const sell = r.sell != null ? formatPrice(r.sell) : "—";
       const mid = r.mid != null ? formatPrice(r.mid) : "—";
-      return `<p><b>${escapeHtml(r.name)}</b> · mid <b>${mid}</b>\n${em("buy")} ${buy} · ${em("sell")} ${sell}</p>`;
+      return `<p><b>${escapeHtml(r.name)}</b> · ${escapeHtml(t(lang, "exMid"))} <b>${mid}</b>\n${em("buy")} ${escapeHtml(t(lang, "cardBuy"))} ${buy} · ${em("sell")} ${escapeHtml(t(lang, "cardSell"))} ${sell}</p>`;
     })
     .join("\n");
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
@@ -344,13 +347,14 @@ export function richExchanges(
   const hi = mids.length ? Math.max(...mids) : null;
   const spread =
     lo != null && hi != null
-      ? `<p>⬆ max <b>${formatPrice(hi)}</b> · ⬇ min <b>${formatPrice(lo)}</b> · Δ <b>${formatPrice(hi - lo)}</b></p>`
+      ? `<p>⬆ ${escapeHtml(t(lang, "exMax"))} <b>${formatPrice(hi)}</b> · ⬇ ${escapeHtml(t(lang, "exMin"))} <b>${formatPrice(lo)}</b> · Δ <b>${formatPrice(hi - lo)}</b></p>`
       : "";
+  const empty = `<p>${escapeHtml(t(lang, "exNone"))}</p>`;
   return `
-<h2>${em("price")} USDT exchanges</h2>
-<p><i>${rows.length} venues · Buy = you pay · Sell = you receive (Toman)</i></p>
+<h2>${em("price")} ${escapeHtml(t(lang, "exTitle"))}</h2>
+<p><i>${rows.length} · ${escapeHtml(t(lang, "exHint"))}</i></p>
 ${spread}
-${lines || "<p>No exchange data yet — wait for next scrape.</p>"}
+${lines || empty}
 <p>${em("clock")} <tg-time unix="${newest || Math.floor(Date.now() / 1000)}" format="r">${escapeHtml(when)}</tg-time> · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -359,16 +363,18 @@ export function richCompare(
   env: Env,
   a: { id: string; name: string; emoji: string; price: number },
   b: { id: string; name: string; emoji: string; price: number },
+  lang: Lang = "en",
 ): string {
   const ratio = b.price > 0 ? a.price / b.price : 0;
   const spread = a.price - b.price;
   const spreadPct = b.price > 0 ? (spread / b.price) * 100 : 0;
   const sign = spread >= 0 ? "+" : "";
+  const unit = escapeHtml(t(lang, "cardUnit"));
   return `
 <h2>${a.emoji} $${a.id} vs ${b.emoji} $${b.id}</h2>
-<p>${a.emoji} <b>${formatPrice(a.price)}</b> IRT</p>
-<p>${b.emoji} <b>${formatPrice(b.price)}</b> IRT</p>
-<p>Spread <b>${sign}${formatPrice(spread)}</b> (${sign}${spreadPct.toFixed(2)}%)</p>
+<p>${a.emoji} <b>${formatPrice(a.price)}</b> ${unit}</p>
+<p>${b.emoji} <b>${formatPrice(b.price)}</b> ${unit}</p>
+<p>${escapeHtml(t(lang, "cmpSpread"))} <b>${sign}${formatPrice(spread)}</b> (${sign}${spreadPct.toFixed(2)}%)</p>
 <p>1 $${a.id} ≈ <b>${ratio.toFixed(4)}</b> $${b.id}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -377,12 +383,14 @@ export function richCompare(
 export function richMulti(
   env: Env,
   rows: Array<{ id: string; emoji: string; price: number }>,
+  lang: Lang = "en",
 ): string {
+  const unit = escapeHtml(t(lang, "cardUnit"));
   const body = rows
-    .map((r) => `<p>${r.emoji} $${r.id} · <b>${formatPrice(r.price)}</b></p>`)
+    .map((r) => `<p>${r.emoji} $${r.id} · <b>${formatPrice(r.price)}</b> ${unit}</p>`)
     .join("\n");
   return `
-<h2>${em("sparkle")} Snapshot</h2>
+<h2>${em("sparkle")} ${escapeHtml(t(lang, "snapTitle"))}</h2>
 ${body}
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -393,17 +401,22 @@ export function richHistory(
   id: string,
   emoji: string,
   days: Array<{ day: string; open: number; high: number; low: number; close: number }>,
+  lang: Lang = "en",
 ): string {
+  const o = escapeHtml(t(lang, "ohlcOpen"));
+  const h = escapeHtml(t(lang, "ohlcHigh"));
+  const l = escapeHtml(t(lang, "ohlcLow"));
+  const c = escapeHtml(t(lang, "ohlcClose"));
   const lines = days
     .slice(-7)
     .map(
       (d) =>
-        `<p><code>${escapeHtml(d.day)}</code> O ${formatPrice(d.open)} · H ${formatPrice(d.high)} · L ${formatPrice(d.low)} · C <b>${formatPrice(d.close)}</b></p>`,
+        `<p><code>${escapeHtml(d.day)}</code> ${o} ${formatPrice(d.open)} · ${h} ${formatPrice(d.high)} · ${l} ${formatPrice(d.low)} · ${c} <b>${formatPrice(d.close)}</b></p>`,
     )
     .join("\n");
   return `
-<h2>${emoji} $${id} history</h2>
-${lines || "<p>No OHLC yet.</p>"}
+<h2>${emoji} $${id} ${escapeHtml(t(lang, "histTitle"))}</h2>
+${lines || `<p>${escapeHtml(t(lang, "histEmpty"))}</p>`}
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -413,16 +426,17 @@ export function richOhlc(
   id: string,
   emoji: string,
   d: { day: string; open: number; high: number; low: number; close: number } | null,
+  lang: Lang = "en",
 ): string {
   if (!d) {
-    return `<h2>${emoji} $${id}</h2><p>No OHLC bar yet.</p>`;
+    return `<h2>${emoji} $${id}</h2><p>${escapeHtml(t(lang, "ohlcEmpty"))}</p>`;
   }
   return `
 <h2>${emoji} $${id} · ${escapeHtml(d.day)}</h2>
-<p>Open <b>${formatPrice(d.open)}</b></p>
-<p>${em("high")} High <b>${formatPrice(d.high)}</b></p>
-<p>${em("low")} Low <b>${formatPrice(d.low)}</b></p>
-<p>Close <b>${formatPrice(d.close)}</b></p>
+<p>${escapeHtml(t(lang, "ohlcOpen"))} <b>${formatPrice(d.open)}</b></p>
+<p>${em("high")} ${escapeHtml(t(lang, "ohlcHigh"))} <b>${formatPrice(d.high)}</b></p>
+<p>${em("low")} ${escapeHtml(t(lang, "ohlcLow"))} <b>${formatPrice(d.low)}</b></p>
+<p>${escapeHtml(t(lang, "ohlcClose"))} <b>${formatPrice(d.close)}</b></p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -459,17 +473,20 @@ export function richSymbolPrice(
   chartUrl?: string,
   dayRange?: { high: number; low: number } | null,
   price24hAgo?: number | null,
+  lang: Lang = "en",
+  range: ChartRange = "24h",
 ): string {
-  const unit = "IRT";
+  const unit = escapeHtml(t(lang, "cardUnit"));
   // Bare $USD → native cashtag (entity detection on)
   const cash = `$${def.id}`;
   const channel = `@${escapeHtml(env.CHANNEL_USERNAME)}`;
+  const pulse = t(lang, range === "7d" ? "cardPulse7d" : "cardPulse24h");
 
   if (!row) {
     return `
 <h2>${def.emoji} ${escapeHtml(def.name)}</h2>
-<p>${cash} · ${em("sparkle")} free market</p>
-<p>No data yet — wait for the next scrape.</p>
+<p>${cash}</p>
+<p>${escapeHtml(t(lang, "cardNoData"))}</p>
 `.trim();
   }
 
@@ -486,16 +503,16 @@ export function richSymbolPrice(
   const dayCh = formatDelta(row.price, price24hAgo, icons);
 
   const chartBlock = chartUrl
-    ? `<img src="${escapeHtml(chartUrl)}" alt="${escapeHtml(def.id)} 24h"/>
-<p>${em("chart")} <i>24h pulse</i></p>`
+    ? `<img src="${escapeHtml(chartUrl)}" alt="${escapeHtml(def.id)} ${escapeHtml(pulse)}"/>
+<p>${em("chart")} <i>${escapeHtml(pulse)}</i></p>`
     : "";
 
   // Tab-aligned book (plain text in <pre> so columns stay fixed-width)
   const book = [
-    priceLine("Buy", buy, 10, 12),
-    priceLine("Sell", sell, 10, 12),
-    priceLine("Day high", high, 10, 12),
-    priceLine("Day low", low, 10, 12),
+    priceLine(t(lang, "cardBuy"), buy, 10, 12),
+    priceLine(t(lang, "cardSell"), sell, 10, 12),
+    priceLine(t(lang, "cardDayHigh"), high, 10, 12),
+    priceLine(t(lang, "cardDayLow"), low, 10, 12),
   ].join("\n");
 
   // Client renders these as live local datetime (format regex: r | w?[dD]?[tT]?)
@@ -505,15 +522,14 @@ export function richSymbolPrice(
 
   return `
 <h2>${def.emoji} ${escapeHtml(def.name)}</h2>
-<p>${cash} · ${em("sparkle")} free market</p>
+<p>${cash}</p>
 ${chartBlock}
 <p>${em("price")} <b>${formatPrice(row.price)}</b> ${unit}</p>
-<p>${em("sparkle")} <b>Tick</b> · ${tickCh}</p>
-<p>${em("chart")} <b>24h</b> · ${dayCh}</p>
-<p>${em("buy")} <b>Buy</b> · ${em("sell")} <b>Sell</b></p>
+<p>${em("sparkle")} <b>${escapeHtml(t(lang, "cardTick"))}</b> · ${tickCh}</p>
+<p>${em("chart")} <b>${escapeHtml(t(lang, "cardDay"))}</b> · ${dayCh}</p>
 <pre>${book}</pre>
 <p>${em("clock")} ${timeLive} · ${timeRel}</p>
-<p>${cash} · ${em("channel")} <a href="${channelUrl(env)}">${channel}</a></p>
+<p>${em("channel")} <a href="${channelUrl(env)}">${channel}</a></p>
 `.trim();
 }
 

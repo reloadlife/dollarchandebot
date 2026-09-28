@@ -114,7 +114,12 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   });
 
   if (update.inline_query) {
-    await handleInline(env, update.inline_query.id, update.inline_query.query);
+    await handleInline(
+      env,
+      update.inline_query.id,
+      update.inline_query.query,
+      update.inline_query.from.id,
+    );
     return;
   }
 
@@ -243,6 +248,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         env,
         { id: a.id, name: a.name, emoji: a.emoji, price: ra.price },
         { id: b.id, name: b.name, emoji: b.emoji, price: rb.price },
+        settings.lang,
       ),
       {
         ...replyParams(replyTo),
@@ -263,7 +269,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       await replyRich(
         env,
         chatId,
-        richOhlc(env, def.id, def.emoji, days[days.length - 1] ?? null),
+        richOhlc(env, def.id, def.emoji, days[days.length - 1] ?? null, settings.lang),
         {
           ...replyParams(replyTo),
           reply_markup: menuOnlyKeyboard(settings.lang),
@@ -374,7 +380,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       if (row) rows.push({ id, emoji: def.emoji, price: row.price });
     }
     if (rows.length) {
-      await replyRich(env, chatId, richMulti(env, rows), {
+      await replyRich(env, chatId, richMulti(env, rows, settings.lang), {
         ...replyParams(replyTo),
         reply_markup: menuOnlyKeyboard(settings.lang),
       });
@@ -731,6 +737,7 @@ async function buildCalcInlineResult(
 async function buildSymbolInlineResult(
   env: Env,
   def: SymbolDef,
+  lang: Lang = "en",
 ): Promise<Record<string, unknown>> {
   const row = await getLatest(env.DB, def.id);
   const [dayRange, price24h] = await Promise.all([
@@ -748,7 +755,7 @@ async function buildSymbolInlineResult(
     console.error("inline ensureChartPng", e);
   }
   const chartUrl = chartPublicUrl(env, def.id);
-  const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h);
+  const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h, lang);
 
   return {
     type: "article",
@@ -767,10 +774,11 @@ async function buildSymbolInlineResult(
 async function buildSymbolGuestResult(
   env: Env,
   symbolRaw: string,
+  lang: Lang = "en",
 ): Promise<Record<string, unknown> | null> {
   const def = resolveSymbol(symbolRaw);
   if (!def) return null;
-  return buildSymbolInlineResult(env, def);
+  return buildSymbolInlineResult(env, def, lang);
 }
 
 async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
@@ -785,6 +793,9 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
 
   const raw = (msg.text ?? msg.caption ?? "").trim();
   const query = extractGuestQuery(raw, env.BOT_USERNAME);
+  const guestLang: Lang = msg.from
+    ? (await getSettings(env.DB, String(msg.from.id))).lang
+    : "en";
 
   try {
     let result: Record<string, unknown>;
@@ -794,13 +805,13 @@ async function handleGuestMessage(env: Env, msg: TgMessage): Promise<void> {
     } else if (looksLikeCalc(query)) {
       result = await buildCalcInlineResult(env, query);
     } else {
-      const symbolResult = await buildSymbolGuestResult(env, query);
+      const symbolResult = await buildSymbolGuestResult(env, query, guestLang);
       if (symbolResult) {
         result = symbolResult;
       } else {
         const hits = searchSymbols(query, 1);
         if (hits[0]) {
-          result = await buildSymbolInlineResult(env, hits[0]);
+          result = await buildSymbolInlineResult(env, hits[0], guestLang);
         } else {
           result = {
             type: "article",
@@ -870,8 +881,10 @@ async function handleInline(
   env: Env,
   inlineQueryId: string,
   query: string,
+  userId: number,
 ): Promise<void> {
   const q = query.trim();
+  const lang = (await getSettings(env.DB, String(userId))).lang;
 
   if (looksLikeCalc(q)) {
     const result = await buildCalcInlineResult(env, q);
@@ -888,7 +901,7 @@ async function handleInline(
   const inlineTtl = ttlUntilNext5m();
   // Warm charts in parallel; build results
   const results = await Promise.all(
-    matches.map((def) => buildSymbolInlineResult(env, def)),
+    matches.map((def) => buildSymbolInlineResult(env, def, lang)),
   );
 
   await answerInlineQuery(env, inlineQueryId, results, inlineTtl);

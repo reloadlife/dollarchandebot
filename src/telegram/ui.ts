@@ -317,7 +317,7 @@ export function screenSymbolCard(
   range: ChartRange,
 ): Screen {
   return {
-    html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo),
+    html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo, lang, range),
     keyboard: symbolCardKeyboard(lang, def.id, range, def.kind),
   };
 }
@@ -330,7 +330,7 @@ export function screenHistory(
   days: Array<{ day: string; open: number; high: number; low: number; close: number }>,
 ): Screen {
   return {
-    html: richHistory(env, id, emoji, days),
+    html: richHistory(env, id, emoji, days, lang),
     keyboard: historyKeyboard(lang, id),
   };
 }
@@ -347,7 +347,7 @@ export function screenExchanges(
   }>,
 ): Screen {
   return {
-    html: richExchanges(env, rows),
+    html: richExchanges(env, rows, lang),
     keyboard: exchangesKeyboard(lang),
   };
 }
@@ -368,7 +368,14 @@ export function screenAlerts(lang: Lang, rows: AlertRow[]): Screen {
         a.mode === "repeat"
           ? t(lang, "alertModeRepeat")
           : t(lang, "alertModeOnce");
-      return `<p>#${a.id} <code>${escapeHtml(a.symbol)}</code> ${escapeHtml(a.direction)} ${a.threshold} · <i>${escapeHtml(mode)}</i></p>`;
+      const dir =
+        a.direction === "below"
+          ? t(lang, "dirBelow")
+          : a.direction === "move_pct"
+            ? t(lang, "dirMove")
+            : t(lang, "dirAbove");
+      const thr = a.direction === "move_pct" ? `${a.threshold}%` : String(a.threshold);
+      return `<p>#${a.id} <code>${escapeHtml(a.symbol)}</code> ${escapeHtml(dir)} ${escapeHtml(thr)} · <i>${escapeHtml(mode)}</i></p>`;
     })
     .join("\n");
   const html = `<h2>🔔 ${escapeHtml(t(lang, "alertsTitle"))}</h2>
