@@ -184,10 +184,19 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   }
 
   if (command?.cmd === "start") {
-    const payload = command.arg.toLowerCase();
-    if (payload === "fa" || payload === "en") {
-      await setLang(env.DB, String(chatId), payload as Lang);
-      settings.lang = payload as Lang;
+    const payload = command.arg.trim();
+    const lower = payload.toLowerCase();
+    if (lower === "fa" || lower === "en") {
+      await setLang(env.DB, String(chatId), lower as Lang);
+      settings.lang = lower as Lang;
+      await showScreen(env, sendTarget, await screenHome(env, settings.lang));
+      return;
+    }
+    const range: ChartRange = /_7d$/i.test(payload) ? "7d" : "24h";
+    const started = resolveSymbol(payload.replace(/_7d$/i, ""));
+    if (started) {
+      await sendSymbolCard(env, chatId, started.id, settings.lang, sendTarget, range);
+      return;
     }
     await showScreen(env, sendTarget, await screenHome(env, settings.lang));
     return;
@@ -876,7 +885,7 @@ async function buildSymbolInlineResult(
     console.error("inline ensureChartPng", e);
   }
   const chartUrl = chartPublicUrl(env, def.id);
-  const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h, lang);
+  const richHtml = richSymbolPrice(env, def, row, chartUrl, dayRange, price24h, lang, "24h", "link");
 
   return {
     type: "article",

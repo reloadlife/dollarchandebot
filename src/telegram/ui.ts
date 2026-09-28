@@ -160,31 +160,14 @@ export function symbolListKeyboard(
   return { inline_keyboard: rows };
 }
 
+/** Range, history, alert, and copy live inside the rich message. */
 export function symbolCardKeyboard(
   lang: Lang,
-  symbolId: string,
-  range: ChartRange,
-  price: number | null,
   backKind?: SymbolKind,
 ): InlineKeyboard {
   const back = backKind ? `b:${backKind}:0` : "b:c";
-  const rangeRow: InlineBtn[] = [
-    btn("24h", `s:${symbolId}:24h`, range === "24h" ? "primary" : undefined),
-    btn("7d", `s:${symbolId}:7d`, range === "7d" ? "primary" : undefined),
-    btn(t(lang, "uiRefresh"), `s:${symbolId}:${range}`),
-  ];
-  if (price != null) {
-    rangeRow.push({ text: t(lang, "uiCopy"), copy_text: { text: String(Math.round(price)) } });
-  }
   return {
-    inline_keyboard: [
-      rangeRow,
-      [
-        btn(t(lang, "uiHistory"), `s:${symbolId}:hi`),
-        btn(t(lang, "uiAlertNew"), `a:new:${symbolId}`, "primary"),
-      ],
-      [btn(t(lang, "uiBack"), back), btn(t(lang, "uiHome"), "h")],
-    ],
+    inline_keyboard: [[btn(t(lang, "uiBack"), back), btn(t(lang, "uiHome"), "h")]],
   };
 }
 
@@ -335,7 +318,7 @@ export function screenSymbolCard(
 ): Screen {
   return {
     html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo, lang, range),
-    keyboard: symbolCardKeyboard(lang, def.id, range, row?.price ?? null, def.kind),
+    keyboard: symbolCardKeyboard(lang, def.kind),
   };
 }
 

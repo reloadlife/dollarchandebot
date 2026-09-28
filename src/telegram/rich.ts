@@ -21,6 +21,33 @@ function cell(label: string): TableCell {
 function numCell(n: number): TableCell {
   return { text: formatPrice(n), align: "right", bold: true };
 }
+
+/** In-message actions. Inline cards use a link, because that chat has no callback target. */
+function cardActionRow(
+  env: Env,
+  lang: Lang,
+  symbolId: string,
+  range: ChartRange,
+  price: number | null,
+  mode: "chat" | "link",
+): string {
+  if (mode === "link") {
+    const url = `https://t.me/${env.BOT_USERNAME}?start=${symbolId}`;
+    return `<tg-button-row><tg-button type="url" url="${escapeHtml(url)}">${escapeHtml(t(lang, "uiOpen"))}</tg-button></tg-button-row>`;
+  }
+  const style = (on: boolean) => (on ? ` style="primary"` : "");
+  const copy =
+    price != null
+      ? `<tg-button type="copy_text" text="${Math.round(price)}">${escapeHtml(t(lang, "uiCopy"))}</tg-button>`
+      : "";
+  return `<tg-button-row>
+<tg-button type="callback_data"${style(range === "24h")} data="s:${symbolId}:24h">24h</tg-button>
+<tg-button type="callback_data"${style(range === "7d")} data="s:${symbolId}:7d">7d</tg-button>
+<tg-button type="callback_data" data="s:${symbolId}:hi">${escapeHtml(t(lang, "uiHistory"))}</tg-button>
+<tg-button type="callback_data" data="a:new:${symbolId}">${escapeHtml(t(lang, "uiAlertNew"))}</tg-button>
+${copy}
+</tg-button-row>`;
+}
 import { em } from "./emoji";
 
 function channelUrl(env: Env): string {
@@ -551,6 +578,7 @@ export function richSymbolPrice(
   price24hAgo?: number | null,
   lang: Lang = "en",
   range: ChartRange = "24h",
+  actions: "chat" | "link" = "chat",
 ): string {
   const unit = escapeHtml(t(lang, "cardUnit"));
   // Bare $USD → native cashtag (entity detection on)
@@ -604,6 +632,7 @@ ${chartBlock}
 <p>${em("chart")} <b>${escapeHtml(t(lang, "cardDay"))}</b> · ${dayCh}</p>
 ${book}
 <p>${em("clock")} ${timeLive} · ${timeRel}</p>
+${cardActionRow(env, lang, def.id, range, row.price, actions)}
 <p>${em("channel")} <a href="${channelUrl(env)}">${channel}</a></p>
 `.trim();
 }

@@ -45,6 +45,11 @@ test("persian symbol card uses toman labels and the selected range", () => {
   expect(html).toContain("خرید");
   expect(html).toContain("فروش");
   expect(html).toContain("سقف امروز");
+  expect(html).toContain("<tg-button-row>");
+  expect(html).toContain('style="primary"');
+  expect(html).toContain('data="s:USD:7d"');
+  expect(html).toContain('data="a:new:USD"');
+  expect(html).toContain('type="copy_text" text="178850"');
   expect(html).toContain("<table compact");
   expect(html).not.toContain("<pre>");
   expect(html).toContain("۷ روز");
