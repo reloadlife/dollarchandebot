@@ -159,66 +159,76 @@ function normalizeExchanges(exchanges: ExchangeRow[]): ExMid[] {
     .filter((e): e is ExMid => saneUsdtToman(e.midN));
 }
 
-/**
- * Dedicated تتر block: mid price, vs دلار, high/low exchange, arb path.
- */
 /** Older than this and the tether quote is history, not a price. */
 const USDT_STALE_SEC = 30 * 60;
 
-function usdtSection(
+function pairCell(name: string, price: number): TableCell {
+  return { text: `${escapeHtml(name)} · ${formatPrice(price)}`, align: "right", bold: true };
+}
+
+/**
+ * تتر on the channel: price, gap versus دلار, where to buy and sell.
+ * The full venue book stays collapsed so the pinned post stays scannable.
+ */
+export function renderUsdtSection(
   usdtMid: number | undefined,
   usdMid: number | undefined,
   exchanges: ExchangeRow[],
   usdtAgeSec = 0,
-): string[] {
-  const lines: string[] = ["<h3>💰 تتر</h3>"];
+): string {
   const stale = usdtAgeSec > USDT_STALE_SEC;
+  const summary: TableCell[][] = [];
 
   if (usdtMid != null) {
-    // Never print a frozen number as if it were current — every USDT source can
-    // be ASN-blocked at once, and silence beats a confidently wrong rate.
-    const note = stale ? `  <i>(قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه پیش)</i>` : "";
-    lines.push(`<p>قیمت <b>${formatPrice(usdtMid)}</b>${note}</p>`);
+    const age = stale ? ` <i>قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه</i>` : "";
+    summary.push([
+      { text: "قیمت" },
+      { text: `${formatPrice(usdtMid)}${age}`, align: "right", bold: !stale },
+    ]);
   } else {
-    lines.push("<p>قیمت —</p>");
+    summary.push([{ text: "قیمت" }, { text: "—", align: "right" }]);
   }
 
+  // A stale tether quote must not be compared with a live dollar.
   if (usdtMid != null && usdMid != null && !stale) {
     const diff = usdtMid - usdMid;
-    const hint =
-      diff > 0 ? "تتر گران‌تر از دلار" : diff < 0 ? "تتر ارزان‌تر از دلار" : "هم‌قیمت با دلار";
-    lines.push(`<p>اختلاف با دلار <b>${formatSignedSpread(diff)}</b> <i>(${hint})</i></p>`);
+    const hint = diff > 0 ? "گران‌تر" : diff < 0 ? "ارزان‌تر" : "هم‌قیمت";
+    summary.push([
+      { text: "اختلاف با دلار" },
+      { text: `${formatSignedSpread(diff)} · ${hint}`, align: "right", bold: true },
+    ]);
   }
 
-  const withMid = normalizeExchanges(exchanges);
-  // One live venue cannot be both the high and the low, and cannot be an
-  // arbitrage route against itself.
-  if (withMid.length >= 2) {
-    const hi = withMid.reduce((a, b) => (b.midN > a.midN ? b : a));
-    const lo = withMid.reduce((a, b) => (b.midN < a.midN ? b : a));
-    lines.push(
-      `<p>⬆ بالاترین <b>${escapeHtml(hi.name)}</b> · ${formatPrice(hi.midN)}</p>`,
-      `<p>⬇ پایین‌ترین <b>${escapeHtml(lo.name)}</b> · ${formatPrice(lo.midN)}</p>`,
-    );
+  const live = normalizeExchanges(exchanges);
+  const buyers = live.filter((e) => e.buyN != null);
+  const sellers = live.filter((e) => e.sellN != null);
+  const cheapBuy = buyers.length
+    ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a))
+    : null;
+  const bestSell = sellers.length
+    ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
+    : null;
 
-    const buyers = withMid.filter((e) => e.buyN != null);
-    const sellers = withMid.filter((e) => e.sellN != null);
-    const cheapBuy = buyers.length
-      ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a))
-      : null;
-    const bestSell = sellers.length
-      ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
-      : null;
-
-    if (cheapBuy?.buyN != null && bestSell?.sellN != null && cheapBuy.exchange !== bestSell.exchange) {
-      const spread = bestSell.sellN - cheapBuy.buyN;
-      lines.push(
-        `<p>آربیتراژ خرید <b>${escapeHtml(cheapBuy.name)}</b> → فروش <b>${escapeHtml(bestSell.name)}</b> · <b>${formatSignedSpread(spread)}</b></p>`,
-      );
-    }
+  if (cheapBuy?.buyN != null) {
+    summary.push([{ text: "ارزان‌ترین خرید" }, pairCell(cheapBuy.name, cheapBuy.buyN)]);
+  }
+  if (bestSell?.sellN != null) {
+    summary.push([{ text: "بهترین فروش" }, pairCell(bestSell.name, bestSell.sellN)]);
   }
 
-  return lines;
+  const bookRows = [...live].sort((a, b) => (a.buyN ?? 1e18) - (b.buyN ?? 1e18));
+  const book = bookRows.length
+    ? `<details><summary>خرید و فروش</summary>${compactTable([
+        head(["صرافی", "خرید", "فروش"]),
+        ...bookRows.map((e) => [
+          { text: escapeHtml(e.name) },
+          { text: e.buyN != null ? formatPrice(e.buyN) : "—", align: "right" as const },
+          { text: e.sellN != null ? formatPrice(e.sellN) : "—", align: "right" as const },
+        ]),
+      ])}</details>`
+    : "";
+
+  return [`<h3>تتر</h3>`, compactTable(summary), book].filter(Boolean).join("\n");
 }
 
 /**
@@ -272,7 +282,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     `<h3>🪙 سکه</h3>`,
     coins.note,
     coins.html,
-    ...usdtSection(usdt, usd, exchanges, usdtAgeSec),
+    renderUsdtSection(usdt, usd, exchanges, usdtAgeSec),
     `<p>📊 ${mood.emoji} <b>${escapeHtml(mood.label)}</b></p>`,
     `<p><i>${escapeHtml(mood.sub)}</i></p>`,
     channelActionRow(env.BOT_USERNAME),

@@ -391,39 +391,50 @@ export function richExchanges(
   rows: Array<{ name: string; buy: number | null; sell: number | null; mid: number | null; updated_at: number }>,
   lang: Lang = "en",
 ): string {
-  const sorted = [...rows].sort((a, b) => (a.mid ?? 1e18) - (b.mid ?? 1e18));
+  const withBuy = rows.filter((r) => r.buy != null);
+  const withSell = rows.filter((r) => r.sell != null);
+  const cheapBuy = withBuy.length
+    ? withBuy.reduce((a, b) => ((b.buy ?? 0) < (a.buy ?? 0) ? b : a))
+    : null;
+  const bestSell = withSell.length
+    ? withSell.reduce((a, b) => ((b.sell ?? 0) > (a.sell ?? 0) ? b : a))
+    : null;
+  const summary: TableCell[][] = [];
+  if (cheapBuy?.buy != null) {
+    summary.push([
+      { text: escapeHtml(t(lang, "exCheapBuy")) },
+      { text: `${escapeHtml(cheapBuy.name)} · ${formatPrice(cheapBuy.buy)}`, align: "right", bold: true },
+    ]);
+  }
+  if (bestSell?.sell != null) {
+    summary.push([
+      { text: escapeHtml(t(lang, "exBestSell")) },
+      { text: `${escapeHtml(bestSell.name)} · ${formatPrice(bestSell.sell)}`, align: "right", bold: true },
+    ]);
+  }
+  const sorted = [...rows].sort((a, b) => (a.buy ?? 1e18) - (b.buy ?? 1e18));
   const num = (n: number | null) => (n != null ? formatPrice(n) : "—");
   const table = compactTable([
     [
       { text: escapeHtml(t(lang, "exCol")), header: true },
       { text: escapeHtml(t(lang, "cardBuy")), header: true, align: "right" },
       { text: escapeHtml(t(lang, "cardSell")), header: true, align: "right" },
-      { text: escapeHtml(t(lang, "exMid")), header: true, align: "right" },
     ],
     ...sorted.map((r) => [
       { text: escapeHtml(r.name) },
       { text: num(r.buy), align: "right" as const },
       { text: num(r.sell), align: "right" as const },
-      { text: num(r.mid), align: "right" as const, bold: true },
     ]),
   ]);
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
   const when = newest ? formatTimeTehran(newest) : "—";
-  const mids = sorted.map((r) => r.mid).filter((x): x is number => x != null);
-  const lo = mids.length ? Math.min(...mids) : null;
-  const hi = mids.length ? Math.max(...mids) : null;
-  const spread =
-    lo != null && hi != null
-      ? `<p>⬆ ${escapeHtml(t(lang, "exMax"))} <b>${formatPrice(hi)}</b> · ⬇ ${escapeHtml(t(lang, "exMin"))} <b>${formatPrice(lo)}</b> · Δ <b>${formatPrice(hi - lo)}</b></p>`
-      : "";
   const empty = `<p>${escapeHtml(t(lang, "exNone"))}</p>`;
-  const book = sorted.length
-    ? `<details><summary>${escapeHtml(t(lang, "exAll"))}</summary>${table}</details>`
-    : empty;
+  const book = sorted.length ? table : empty;
+  const lead = summary.length ? compactTable(summary) : "";
   return `
 <h2>${em("price")} ${escapeHtml(t(lang, "exTitle"))}</h2>
-<p><i>${rows.length} · ${escapeHtml(t(lang, "exHint"))}</i></p>
-${spread}
+<p><i>${escapeHtml(t(lang, "exHint"))}</i></p>
+${lead}
 ${book}
 <p>${em("clock")} <tg-time unix="${newest || Math.floor(Date.now() / 1000)}" format="r">${escapeHtml(when)}</tg-time> · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();

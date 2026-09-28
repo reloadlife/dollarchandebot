@@ -105,15 +105,21 @@ test("home shows four prices and help hides the command list", () => {
   expect(help.indexOf("نرخ بازار آزاد")).toBeLessThan(help.indexOf("<details>"));
 });
 
-test("exchange book is collapsed under the spread", () => {
+test("exchange screen leads with the cheapest buy and an open book", () => {
   const ex = richExchanges(
     env,
-    [{ name: "نوبیتکس", buy: 179000, sell: 178000, mid: 178500, updated_at: 1 }],
+    [
+      { name: "نوبیتکس", buy: 178900, sell: 178400, mid: 178650, updated_at: 1 },
+      { name: "والکس", buy: 179400, sell: 179100, mid: 179250, updated_at: 1 },
+    ],
     "fa",
   );
-  expect(ex).toContain("<details>");
-  expect(ex).toContain("همه صرافی‌ها");
-  expect(ex.indexOf("بالاترین")).toBeLessThan(ex.indexOf("<details>"));
+  expect(ex).toContain("ارزان‌ترین خرید");
+  expect(ex).toContain("بهترین فروش");
+  expect(ex).toContain("<table compact");
+  expect(ex).not.toContain("<details>");
+  expect(ex).not.toContain("بالاترین");
+  expect(ex.indexOf("ارزان‌ترین خرید")).toBeLessThan(ex.indexOf("نوبیتکس ·"));
 });
 
 test("compare uses the chat unit", () => {
