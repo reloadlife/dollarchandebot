@@ -54,9 +54,20 @@ import { getSettings, setFeePct, setLang, type Lang } from "../db/settings";
 import { rateLimit } from "../lib/ratelimit";
 import { t } from "../lib/i18n";
 import {
+  decodePending,
+  encodePending,
+  parseAlertAmount,
+  pendingAlertKey,
+  type PendingAlert,
+  type WizardDirection,
+} from "./alert-flow";
+import {
   menuOnlyKeyboard,
   parseCallback,
+  screenAlertAmount,
+  screenAlertDirection,
   screenAlertHelp,
+  screenAlertMode,
   screenAlerts,
   screenCategories,
   screenExchanges,
@@ -165,6 +176,12 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   const replyTo = msg.message_id;
   const settings = await getSettings(env.DB, String(chatId));
   const sendTarget: ShowTarget = { chatId, replyTo };
+
+  if (command) {
+    await clearPendingAlert(env, chatId);
+  } else if (await continueAlertWizard(env, chatId, text, settings.lang, sendTarget)) {
+    return;
+  }
 
   if (command?.cmd === "start") {
     const payload = command.arg.toLowerCase();
@@ -455,6 +472,53 @@ function chunk<T>(arr: T[], n: number): T[][] {
   return out;
 }
 
+const WIZARD_TTL_SEC = 600;
+
+async function loadPendingAlert(
+  env: Env,
+  chatId: string | number,
+): Promise<PendingAlert | null> {
+  return decodePending(await env.CACHE.get(pendingAlertKey(chatId)));
+}
+
+async function savePendingAlert(
+  env: Env,
+  chatId: string | number,
+  pending: PendingAlert,
+): Promise<void> {
+  await env.CACHE.put(pendingAlertKey(chatId), encodePending(pending), {
+    expirationTtl: WIZARD_TTL_SEC,
+  });
+}
+
+async function clearPendingAlert(env: Env, chatId: string | number): Promise<void> {
+  await env.CACHE.delete(pendingAlertKey(chatId));
+}
+
+/** Bare number while a wizard is open sets the threshold and asks once vs every. */
+async function continueAlertWizard(
+  env: Env,
+  chatId: string | number,
+  text: string,
+  lang: Lang,
+  target: ShowTarget,
+): Promise<boolean> {
+  const pending = await loadPendingAlert(env, chatId);
+  if (!pending) return false;
+  const amount = parseAlertAmount(text);
+  if (amount == null) {
+    if (pending.threshold == null) await clearPendingAlert(env, chatId);
+    return false;
+  }
+  await savePendingAlert(env, chatId, { ...pending, threshold: amount });
+  await showScreen(
+    env,
+    target,
+    screenAlertMode(lang, pending.symbol, pending.direction, amount),
+  );
+  return true;
+}
+
 async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
   const data = cq.data ?? "";
   const chatId = cq.message?.chat?.id;
@@ -531,6 +595,63 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
       case "alerts": {
         const rows = await listAlerts(env.DB, String(chatId));
         await showScreen(env, target, screenAlerts(settings.lang, rows));
+        break;
+      }
+
+      case "alertNew": {
+        const n = await countAlerts(env.DB, String(chatId));
+        if (n >= 10) {
+          toast = t(settings.lang, "maxAlerts");
+          const rows = await listAlerts(env.DB, String(chatId));
+          await showScreen(env, target, screenAlerts(settings.lang, rows));
+          break;
+        }
+        if (!resolveSymbol(parsed.id)) break;
+        await showScreen(env, target, screenAlertDirection(settings.lang, parsed.id));
+        break;
+      }
+
+      case "alertDir": {
+        const direction: WizardDirection =
+          parsed.direction === "below"
+            ? "below"
+            : parsed.direction === "move"
+              ? "move_pct"
+              : "above";
+        if (!resolveSymbol(parsed.id)) break;
+        await savePendingAlert(env, chatId, { symbol: parsed.id, direction });
+        await showScreen(
+          env,
+          target,
+          screenAlertAmount(settings.lang, parsed.id, direction),
+        );
+        break;
+      }
+
+      case "alertArm": {
+        const pending = await loadPendingAlert(env, chatId);
+        if (!pending?.threshold) {
+          await showScreen(env, target, screenAlertHelp(settings.lang));
+          break;
+        }
+        const n = await countAlerts(env.DB, String(chatId));
+        if (n >= 10) {
+          toast = t(settings.lang, "maxAlerts");
+          break;
+        }
+        const mode: AlertMode = parsed.mode === "every" ? "repeat" : "once";
+        const id = await addAlert(
+          env.DB,
+          String(chatId),
+          pending.symbol,
+          pending.direction,
+          pending.threshold,
+          mode,
+        );
+        await clearPendingAlert(env, chatId);
+        const rows = await listAlerts(env.DB, String(chatId));
+        await showScreen(env, target, screenAlerts(settings.lang, rows));
+        toast = `${t(settings.lang, "alertAdded")} #${id}`;
         break;
       }
 

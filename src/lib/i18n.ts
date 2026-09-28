@@ -99,6 +99,10 @@ const en = {
   alertPrice: "Price",
   alertOnceNote: "one-time · removed",
   alertRepeatNote: "every · re-arms when the price clears",
+  alertAskPrice: "Send the price. For example <code>180000</code>",
+  alertAskPct: "Send the percent move. For example <code>2</code>",
+  alertPickMode: "Once, or again after the price comes back?",
+  uiAlertNew: "Alert",
 } as const;
 
 const fa: Record<keyof typeof en, string> = {
@@ -199,6 +203,10 @@ const fa: Record<keyof typeof en, string> = {
   alertPrice: "قیمت",
   alertOnceNote: "یک‌بار · حذف شد",
   alertRepeatNote: "تکراری · بعد از برگشت قیمت دوباره",
+  alertAskPrice: "قیمت را بفرست. مثلاً <code>180000</code>",
+  alertAskPct: "درصد حرکت را بفرست. مثلاً <code>2</code>",
+  alertPickMode: "یک‌بار، یا دوباره بعد از برگشت قیمت؟",
+  uiAlertNew: "هشدار",
 };
 
 export type MsgKey = keyof typeof en;

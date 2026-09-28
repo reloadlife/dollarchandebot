@@ -34,6 +34,8 @@ export type InlineBtn = {
   url?: string;
   switch_inline_query?: string;
   switch_inline_query_current_chat?: string;
+  style?: "primary" | "success" | "danger" | "link";
+  disabled?: boolean;
 };
 
 export type InlineKeyboard = { inline_keyboard: InlineBtn[][] };
@@ -41,6 +43,8 @@ export type InlineKeyboard = { inline_keyboard: InlineBtn[][] };
 export type Screen = {
   html: string;
   keyboard: InlineKeyboard;
+  /** Ask the client to open a reply to this message (alert amount). */
+  forceReply?: boolean;
 };
 
 export type ShowTarget = {
@@ -58,8 +62,14 @@ function channelUrl(env: Env): string {
   return `https://t.me/${env.CHANNEL_USERNAME}`;
 }
 
-function btn(text: string, data: string): InlineBtn {
-  return { text, callback_data: data };
+function btn(
+  text: string,
+  data: string,
+  style?: InlineBtn["style"],
+): InlineBtn {
+  return style
+    ? { text, callback_data: data, style }
+    : { text, callback_data: data };
 }
 
 function chunk<T>(arr: T[], n: number): T[][] {
@@ -165,7 +175,7 @@ export function symbolCardKeyboard(
       ],
       [
         btn(t(lang, "uiHistory"), `s:${symbolId}:hi`),
-        btn(t(lang, "uiAlertHow"), "a:help"),
+        btn(t(lang, "uiAlertNew"), `a:new:${symbolId}`, "primary"),
       ],
       [btn(t(lang, "uiBack"), back), btn(t(lang, "uiHome"), "h")],
     ],
@@ -200,8 +210,8 @@ export function alertsKeyboard(lang: Lang, rows: AlertRow[]): InlineKeyboard {
       40,
     );
     kb.push([
-      btn(label, "noop"),
-      btn(t(lang, "uiDelete"), `a:d:${a.id}`),
+      { text: label, callback_data: "noop", disabled: true },
+      btn(t(lang, "uiDelete"), `a:d:${a.id}`, "danger"),
     ]);
   }
   kb.push([
@@ -385,6 +395,84 @@ ${body}
   return { html: html.trim(), keyboard: alertsKeyboard(lang, rows) };
 }
 
+export function screenAlertDirection(lang: Lang, symbolId: string): Screen {
+  const html =
+    lang === "fa"
+      ? `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+<p>کدام شرط؟</p>`
+      : `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+<p>Which condition?</p>`;
+  return {
+    html: html.trim(),
+    keyboard: {
+      inline_keyboard: [
+        [
+          btn(t(lang, "dirAbove"), `a:dir:${symbolId}:above`, "primary"),
+          btn(t(lang, "dirBelow"), `a:dir:${symbolId}:below`),
+        ],
+        [btn(`${t(lang, "dirMove")} %`, `a:dir:${symbolId}:move`)],
+        [btn(t(lang, "uiBack"), `s:${symbolId}`), btn(t(lang, "uiHome"), "h")],
+      ],
+    },
+  };
+}
+
+export function screenAlertAmount(
+  lang: Lang,
+  symbolId: string,
+  direction: "above" | "below" | "move_pct",
+): Screen {
+  const dir =
+    direction === "below"
+      ? t(lang, "dirBelow")
+      : direction === "move_pct"
+        ? t(lang, "dirMove")
+        : t(lang, "dirAbove");
+  const ask = direction === "move_pct" ? t(lang, "alertAskPct") : t(lang, "alertAskPrice");
+  const html = `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+<p>${escapeHtml(dir)}</p>
+<p>${ask}</p>`;
+  return {
+    html: html.trim(),
+    forceReply: true,
+    keyboard: {
+      inline_keyboard: [
+        [btn(t(lang, "uiBack"), `a:new:${symbolId}`), btn(t(lang, "uiHome"), "h")],
+      ],
+    },
+  };
+}
+
+export function screenAlertMode(
+  lang: Lang,
+  symbolId: string,
+  direction: "above" | "below" | "move_pct",
+  threshold: number,
+): Screen {
+  const dir =
+    direction === "below"
+      ? t(lang, "dirBelow")
+      : direction === "move_pct"
+        ? t(lang, "dirMove")
+        : t(lang, "dirAbove");
+  const thr = direction === "move_pct" ? `${threshold}%` : String(threshold);
+  const html = `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+<p>${escapeHtml(dir)} <b>${escapeHtml(thr)}</b></p>
+<p>${t(lang, "alertPickMode")}</p>`;
+  return {
+    html: html.trim(),
+    keyboard: {
+      inline_keyboard: [
+        [
+          btn(t(lang, "alertModeOnce"), "a:arm:once", "primary"),
+          btn(t(lang, "alertModeRepeat"), "a:arm:every"),
+        ],
+        [btn(t(lang, "uiHome"), "h")],
+      ],
+    },
+  };
+}
+
 export function screenAlertHelp(lang: Lang): Screen {
   const html =
     lang === "fa"
@@ -421,7 +509,9 @@ export async function showScreen(
   screen: Screen,
 ): Promise<void> {
   const extra: Record<string, unknown> = {
-    reply_markup: screen.keyboard,
+    reply_markup: screen.forceReply
+      ? { ...screen.keyboard, force_reply: true }
+      : screen.keyboard,
   };
   if (target.messageId != null && target.messageId > 0) {
     try {
@@ -491,6 +581,9 @@ export type ParsedCallback =
   | { type: "exchanges" }
   | { type: "alerts" }
   | { type: "alertDelete"; id: number }
+  | { type: "alertNew"; id: string }
+  | { type: "alertDir"; id: string; direction: "above" | "below" | "move" }
+  | { type: "alertArm"; mode: "once" | "every" }
   | { type: "alertHelp" }
   | { type: "settings" }
   | { type: "setLang"; lang: Lang }
@@ -508,10 +601,25 @@ export function parseCallback(raw: string): ParsedCallback {
   if (data === "x") return { type: "exchanges" };
   if (data === "a") return { type: "alerts" };
   if (data === "a:help") return { type: "alertHelp" };
+
+  let m = data.match(/^a:new:([A-Z0-9]+)$/i);
+  if (m) return { type: "alertNew", id: (m[1] ?? "").toUpperCase() };
+
+  m = data.match(/^a:dir:([A-Z0-9]+):(above|below|move)$/i);
+  if (m) {
+    return {
+      type: "alertDir",
+      id: (m[1] ?? "").toUpperCase(),
+      direction: (m[2] ?? "above").toLowerCase() as "above" | "below" | "move",
+    };
+  }
+
+  m = data.match(/^a:arm:(once|every)$/);
+  if (m) return { type: "alertArm", mode: m[1] as "once" | "every" };
   if (data === "set") return { type: "settings" };
   if (data === "help") return { type: "help" };
 
-  let m = data.match(/^b:(fx|gold|coin|crypto):(\d+)$/);
+  m = data.match(/^b:(fx|gold|coin|crypto):(\d+)$/);
   if (m) {
     return {
       type: "browse",
