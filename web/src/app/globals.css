@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* --- vibefarsi:theme-graphite --- */
+/* گرافیت، مینیمال فنی و تم پیش‌فرض. این بلوک را در :root بگذارید. */
+:root {
+  color-scheme: dark;
+
+  /* رنگ */
+  --background: oklch(0.115 0.002 285);
+  --foreground: oklch(0.975 0 0);
+  --card: oklch(0.14 0.002 285);
+  --card-foreground: oklch(0.975 0 0);
+  --popover: oklch(0.16 0.002 285);
+  --popover-foreground: oklch(0.975 0 0);
+  --primary: oklch(0.975 0 0);
+  --primary-foreground: oklch(0.13 0 0);
+  --secondary: oklch(0.2 0.002 285);
+  --secondary-foreground: oklch(0.975 0 0);
+  --muted: oklch(0.175 0.002 285);
+  --muted-foreground: oklch(0.63 0.004 285);
+  --accent: oklch(0.2 0.002 285);
+  --accent-foreground: oklch(0.975 0 0);
+  --destructive: oklch(0.65 0.2 25);
+  --success: oklch(0.75 0.16 160);
+  --warning: oklch(0.82 0.16 80);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.7 0 0);
+  --brand: oklch(0.8 0.165 65);
+  --brand-foreground: oklch(0.22 0.06 60);
+
+  /* زبان طراحی: فونت، فرم، خط، عمق، حرکت و تراکم */
+  --radius: 0.625rem;
+  --type-display-weight: 700;
+  --shape-control: calc(var(--radius) - 2px);
+  --shape-field: calc(var(--radius) - 2px);
+  --shape-surface: calc(var(--radius) + 12px);
+  --shape-overlay: calc(var(--radius) + 4px);
+  --line: 1px;
+  --line-field: 1px;
+  --line-style: solid;
+  --field: color-mix(in oklch, var(--background) 60%, transparent);
+  --depth-control: 0 0 #0000;
+  --depth-press: 0 0 #0000;
+  --depth-field: 0 0 #0000;
+  --depth-surface: 0 1px 0 0 oklch(1 0 0 / 6%) inset;
+  --depth-overlay: 0 20px 50px -20px oklch(0 0 0 / 80%);
+  --surface-filter: none;
+  --press: scale(0.98);
+  --motion: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --backdrop: none;
+  --spacing: 0.25rem;
+}
+/* --- vibefarsi:theme-graphite-end --- */
+
+/* --- vibefarsi:tailwind-map --- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  body {
+    font-size: 16.5px;
+    line-height: 1.8;
+    letter-spacing: 0;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+/* --- vibefarsi:tailwind-map-end --- */
+
+/* --- vibefarsi:font --- */
+@theme inline {
+  --font-sans: var(--font-vazirmatn), "IRANSans", "IRANSansX", "Vazirmatn", ui-sans-serif, system-ui, sans-serif;
+}
+/* --- vibefarsi:font-end --- */

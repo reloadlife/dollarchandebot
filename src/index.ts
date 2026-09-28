@@ -7,6 +7,7 @@ import { setupBotMenu } from "./telegram/commands";
 import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
+import { handlePublicApi } from "./api/public";
 
 /** Bump to push a new setMyCommands list on next cron. */
 const BOT_MENU_VER = "2026-09-28-ephemeral";
@@ -31,6 +32,9 @@ export default {
     // Public chart PNGs for rich-message <img> embeds
     const chartRes = await handleChartRequest(request, env);
     if (chartRes) return chartRes;
+
+    const apiRes = await handlePublicApi(request, env, ctx);
+    if (apiRes) return apiRes;
 
     // Telegram webhook
     // Note: do NOT hard-fail on secret mismatch — a bad setWebhook without secret_token
@@ -178,6 +182,7 @@ export default {
       [
         "DollarChande Worker",
         "GET  /health",
+        "GET  /api/v1",
         "GET  /api/latest",
         "GET  /preview/list",
         "POST /telegram/webhook",
