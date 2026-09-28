@@ -172,7 +172,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
       await setLang(env.DB, String(chatId), payload as Lang);
       settings.lang = payload as Lang;
     }
-    await showScreen(env, sendTarget, screenHome(env, settings.lang));
+    await showScreen(env, sendTarget, await screenHome(env, settings.lang));
     return;
   }
 
@@ -204,7 +204,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
   if (command?.cmd === "lang") {
     const lang = (command.arg.toLowerCase() === "fa" ? "fa" : "en") as Lang;
     await setLang(env.DB, String(chatId), lang);
-    await showScreen(env, sendTarget, screenHome(env, lang));
+    await showScreen(env, sendTarget, await screenHome(env, lang));
     return;
   }
   if (command?.cmd === "fee") {
@@ -481,7 +481,7 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
   try {
     switch (parsed.type) {
       case "home":
-        await showScreen(env, target, screenHome(env, settings.lang));
+        await showScreen(env, target, await screenHome(env, settings.lang));
         break;
 
       case "categories":
@@ -588,7 +588,7 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
         break;
 
       default:
-        await showScreen(env, target, screenHome(env, settings.lang));
+        await showScreen(env, target, await screenHome(env, settings.lang));
         break;
     }
 

@@ -235,13 +235,18 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const ts = newest || Math.floor(Date.now() / 1000);
   const mood = marketMood(map);
 
-  const fxTable = compactTable([
-    head(["ارز", "قیمت", "تغییر"]),
-    ...FX_TICKER.map(({ id, label }) => {
-      const row = map.get(id);
-      return quoteRow(label, row?.price, row?.prev_price);
-    }),
-  ]);
+  const fxHead = head(["ارز", "قیمت", "تغییر"]);
+  const fxOpen = FX_TICKER.filter((x) => x.id === "USD" || x.id === "EUR");
+  const fxMore = FX_TICKER.filter((x) => x.id !== "USD" && x.id !== "EUR");
+  const fxRow = ({ id, label }: { id: string; label: string }) => {
+    const row = map.get(id);
+    return quoteRow(label, row?.price, row?.prev_price);
+  };
+  const fxTable = compactTable([fxHead, ...fxOpen.map(fxRow)]);
+  const fxRest = `<details><summary>بقیه ارزها</summary>${compactTable([
+    fxHead,
+    ...fxMore.map(fxRow),
+  ])}</details>`;
   const goldTable = compactTable([
     head(["طلا", "قیمت", "تغییر"]),
     ...GOLD_IDS.map((id) => {
@@ -261,6 +266,7 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
     `<p>⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
     `<h3>💱 ارز</h3>`,
     fxTable,
+    fxRest,
     `<h3>🥇 طلا</h3>`,
     goldTable,
     `<h3>🪙 سکه</h3>`,

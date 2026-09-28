@@ -10,7 +10,7 @@ import type { LatestRow } from "../db/prices";
 import type { CalcResult } from "../lib/calc";
 import type { Lang } from "../db/settings";
 import type { ChartRange } from "../chart/serve";
-import { escapeHtml, formatDelta, formatPrice, formatTimeTehran } from "../lib/format";
+import { escapeHtml, formatDelta, formatDeltaQuiet, formatPrice, formatTimeTehran } from "../lib/format";
 import { t } from "../lib/i18n";
 import { compactTable, type TableCell } from "../lib/rich-table";
 
@@ -37,22 +37,40 @@ function fmtAmt(n: number): string {
   return String(Number(n.toPrecision(12)));
 }
 
-export function richStart(env: Env, lang: Lang = "en"): string {
-  if (lang === "fa") {
-    return `
-<h2>👋 Dollar Chande</h2>
-<p>نرخ <b>بازار آزاد</b> به <b>تومان</b> · نمودار · هشدار · ماشین‌حساب</p>
-<p>از دکمه‌ها برو، یا بفرست <code>USD</code> / <code>10 USDT + 5%</code></p>
-<p><i>جستجو · مرور نماد · صرافی‌ها · هشدارها</i></p>
-<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
-`.trim();
-  }
+const HOME_QUOTES: Array<{ id: string; key: "homeUsd" | "homeUsdt" | "homeGold" | "homeCoin" }> = [
+  { id: "USD", key: "homeUsd" },
+  { id: "USDT", key: "homeUsdt" },
+  { id: "GOLD18", key: "homeGold" },
+  { id: "EMAMI", key: "homeCoin" },
+];
 
+/** Home is the four prices people open the bot for. */
+export function richHome(
+  env: Env,
+  lang: Lang,
+  quotes: Map<string, { price: number; prev_price: number | null }>,
+): string {
+  const unit = escapeHtml(t(lang, "cardUnit"));
+  const table = compactTable([
+    [
+      { text: "", header: true },
+      { text: unit, header: true, align: "right" },
+      { text: escapeHtml(t(lang, "cardTick")), header: true, align: "right" },
+    ],
+    ...HOME_QUOTES.map(({ id, key }) => {
+      const row = quotes.get(id);
+      const delta = row ? formatDeltaQuiet(row.price, row.prev_price) : null;
+      return [
+        { text: escapeHtml(t(lang, key)) },
+        { text: row ? formatPrice(row.price) : "—", align: "right" as const, bold: true },
+        { text: escapeHtml(delta ?? "—"), align: "right" as const },
+      ];
+    }),
+  ]);
   return `
-<h2>👋 Dollar Chande</h2>
-<p>Live <b>free-market</b> rates in <b>Toman</b> · charts · alerts · calc</p>
-<p>Use the buttons, or type <code>USD</code> / <code>10 USDT + 5%</code></p>
-<p><i>Search · browse · exchanges · alerts</i></p>
+<h2>Dollar Chande</h2>
+${table}
+<p>${t(lang, "homeHint")}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -60,8 +78,10 @@ export function richStart(env: Env, lang: Lang = "en"): string {
 export function richHelp(env: Env, lang: Lang = "en"): string {
   if (lang === "fa") {
     return `
-<h2>ℹ️ راهنما · Dollar Chande</h2>
-<p>ارز، طلا، سکه و <b>تتر چندصرافی</b> · نمودار · ماشین‌حساب · هشدار.</p>
+<h2>راهنما</h2>
+<p>${t(lang, "helpLead")}</p>
+<details>
+<summary>${escapeHtml(t(lang, "helpMore"))}</summary>
 
 <h3>قیمت و منو</h3>
 <ul>
@@ -109,13 +129,16 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <li>منوی / پایین چت را هم ببین</li>
 </ul>
 
+</details>
 <p>⏱ به‌روزرسانی ~۵ دقیقه · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
   }
 
   return `
-<h2>ℹ️ Help · Dollar Chande</h2>
-<p>Free-market FX, gold, coins &amp; multi-exchange <b>USDT</b> · charts · calc · alerts.</p>
+<h2>Help</h2>
+<p>${t(lang, "helpLead")}</p>
+<details>
+<summary>${escapeHtml(t(lang, "helpMore"))}</summary>
 
 <h3>Prices &amp; menu</h3>
 <ul>
@@ -163,6 +186,7 @@ export function richHelp(env: Env, lang: Lang = "en"): string {
 <li>Open the <b>/</b> menu for commands</li>
 </ul>
 
+</details>
 <p>⏱ ~5 min refresh · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -366,11 +390,14 @@ export function richExchanges(
       ? `<p>⬆ ${escapeHtml(t(lang, "exMax"))} <b>${formatPrice(hi)}</b> · ⬇ ${escapeHtml(t(lang, "exMin"))} <b>${formatPrice(lo)}</b> · Δ <b>${formatPrice(hi - lo)}</b></p>`
       : "";
   const empty = `<p>${escapeHtml(t(lang, "exNone"))}</p>`;
+  const book = sorted.length
+    ? `<details><summary>${escapeHtml(t(lang, "exAll"))}</summary>${table}</details>`
+    : empty;
   return `
 <h2>${em("price")} ${escapeHtml(t(lang, "exTitle"))}</h2>
 <p><i>${rows.length} · ${escapeHtml(t(lang, "exHint"))}</i></p>
 ${spread}
-${sorted.length ? table : empty}
+${book}
 <p>${em("clock")} <tg-time unix="${newest || Math.floor(Date.now() / 1000)}" format="r">${escapeHtml(when)}</tg-time> · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }

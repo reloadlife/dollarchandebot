@@ -7,7 +7,8 @@ import type { Env } from "../env";
 import type { Lang } from "../db/settings";
 import type { AlertRow } from "../db/alerts";
 import type { SymbolDef, SymbolKind } from "../symbols";
-import { popularSymbols, symbolsByKind } from "../symbols";
+import { symbolsByKind } from "../symbols";
+import { getAllLatest } from "../db/prices";
 import { t } from "../lib/i18n";
 import { escapeHtml } from "../lib/format";
 import {
@@ -18,8 +19,8 @@ import {
 } from "./api";
 import {
   richHelp,
+  richHome,
   richSettings,
-  richStart,
   richExchanges,
   richHistory,
   richSymbolPrice,
@@ -70,13 +71,17 @@ function chunk<T>(arr: T[], n: number): T[][] {
 // —— Keyboards ——
 
 export function homeKeyboard(env: Env, lang: Lang): InlineKeyboard {
-  const pop = popularSymbols().slice(0, 5);
-  const popRow = pop.map((s) => btn(`${s.emoji} ${s.id}`, `s:${s.id}`));
-  // wrap popular into rows of 3
-  const popRows = chunk(popRow, 3);
   return {
     inline_keyboard: [
-      ...popRows,
+      [
+        btn(t(lang, "homeUsd"), "s:USD"),
+        btn(t(lang, "homeUsdt"), "s:USDT"),
+      ],
+      [
+        btn(t(lang, "homeGold"), "s:GOLD18"),
+        btn(t(lang, "homeCoin"), "s:EMAMI"),
+      ],
+      [btn(t(lang, "uiExchanges"), "x"), btn(t(lang, "uiAlerts"), "a")],
       [
         btn(t(lang, "uiBrowse"), "b:c"),
         {
@@ -84,15 +89,7 @@ export function homeKeyboard(env: Env, lang: Lang): InlineKeyboard {
           switch_inline_query_current_chat: "",
         },
       ],
-      [btn(t(lang, "uiExchanges"), "x"), btn(t(lang, "uiAlerts"), "a")],
-      [btn(t(lang, "uiSettings"), "set"), btn(t(lang, "uiHelp"), "help")],
-      [
-        {
-          text: t(lang, "uiShare"),
-          switch_inline_query: "USD",
-        },
-        { text: t(lang, "uiChannel"), url: channelUrl(env) },
-      ],
+      [{ text: t(lang, "uiChannel"), url: channelUrl(env) }],
     ],
   };
 }
@@ -268,9 +265,13 @@ function kindLabel(lang: Lang, kind: SymbolKind): string {
   }
 }
 
-export function screenHome(env: Env, lang: Lang): Screen {
+export async function screenHome(env: Env, lang: Lang): Promise<Screen> {
+  const rows = await getAllLatest(env.DB);
+  const quotes = new Map(
+    rows.map((r) => [r.symbol, { price: r.price, prev_price: r.prev_price }]),
+  );
   return {
-    html: richStart(env, lang),
+    html: richHome(env, lang, quotes),
     keyboard: homeKeyboard(env, lang),
   };
 }

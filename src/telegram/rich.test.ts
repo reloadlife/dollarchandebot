@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import type { Env } from "../env";
 import type { SymbolDef } from "../symbols";
 import type { LatestRow } from "../db/prices";
-import { richCompare, richExchanges, richHistory, richSymbolPrice } from "./rich";
+import { richCompare, richExchanges, richHelp, richHistory, richHome, richSymbolPrice } from "./rich";
 
 const env = {
   CHANNEL_USERNAME: "AlanDollarChande",
@@ -81,6 +81,34 @@ test("exchange and history cards follow the chat language", () => {
   expect(hist).toContain("تاریخچه");
   expect(hist).toContain("باز");
   expect(hist).not.toContain(">O <");
+});
+
+test("home shows four prices and help hides the command list", () => {
+  const quotes = new Map([
+    ["USD", { price: 178850, prev_price: 178000 }],
+    ["USDT", { price: 179000, prev_price: 179000 }],
+  ]);
+  const home = richHome(env, "fa", quotes);
+  expect(home).toContain("دلار");
+  expect(home).toContain("178,850");
+  expect(home).toContain("سکه");
+  expect(home).not.toContain("جستجو · مرور");
+
+  const help = richHelp(env, "fa");
+  expect(help).toContain("<details>");
+  expect(help).toContain("دستورها");
+  expect(help.indexOf("نرخ بازار آزاد")).toBeLessThan(help.indexOf("<details>"));
+});
+
+test("exchange book is collapsed under the spread", () => {
+  const ex = richExchanges(
+    env,
+    [{ name: "نوبیتکس", buy: 179000, sell: 178000, mid: 178500, updated_at: 1 }],
+    "fa",
+  );
+  expect(ex).toContain("<details>");
+  expect(ex).toContain("همه صرافی‌ها");
+  expect(ex.indexOf("بالاترین")).toBeLessThan(ex.indexOf("<details>"));
 });
 
 test("compare uses the chat unit", () => {
