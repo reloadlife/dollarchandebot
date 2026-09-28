@@ -36,6 +36,8 @@ export type InlineBtn = {
   switch_inline_query_current_chat?: string;
   style?: "primary" | "success" | "danger" | "link";
   disabled?: boolean;
+  /** Copies this text. Mutually exclusive with callback_data. */
+  copy_text?: { text: string };
 };
 
 export type InlineKeyboard = { inline_keyboard: InlineBtn[][] };
@@ -139,14 +141,15 @@ export function symbolListKeyboard(
   );
 
   if (pages > 1) {
-    const prev = p > 0 ? btn("◀", `b:${kind}:${p - 1}`) : btn("·", "noop");
-    const next =
-      p < pages - 1 ? btn("▶", `b:${kind}:${p + 1}`) : btn("·", "noop");
-    rows.push([
-      prev,
-      btn(`${p + 1}/${pages}`, "noop"),
-      next,
-    ]);
+    const prev: InlineBtn =
+      p > 0
+        ? btn("◀", `b:${kind}:${p - 1}`)
+        : { text: "◀", callback_data: "noop", disabled: true };
+    const next: InlineBtn =
+      p < pages - 1
+        ? btn("▶", `b:${kind}:${p + 1}`)
+        : { text: "▶", callback_data: "noop", disabled: true };
+    rows.push([prev, { text: `${p + 1}/${pages}`, callback_data: "noop", disabled: true }, next]);
   }
 
   rows.push([
@@ -161,18 +164,21 @@ export function symbolCardKeyboard(
   lang: Lang,
   symbolId: string,
   range: ChartRange,
+  price: number | null,
   backKind?: SymbolKind,
 ): InlineKeyboard {
-  const r24 = range === "24h" ? "· 24h ·" : "24h";
-  const r7 = range === "7d" ? "· 7d ·" : "7d";
   const back = backKind ? `b:${backKind}:0` : "b:c";
+  const rangeRow: InlineBtn[] = [
+    btn("24h", `s:${symbolId}:24h`, range === "24h" ? "primary" : undefined),
+    btn("7d", `s:${symbolId}:7d`, range === "7d" ? "primary" : undefined),
+    btn(t(lang, "uiRefresh"), `s:${symbolId}:${range}`),
+  ];
+  if (price != null) {
+    rangeRow.push({ text: t(lang, "uiCopy"), copy_text: { text: String(Math.round(price)) } });
+  }
   return {
     inline_keyboard: [
-      [
-        btn(r24, `s:${symbolId}:24h`),
-        btn(r7, `s:${symbolId}:7d`),
-        btn(t(lang, "uiRefresh"), `s:${symbolId}:${range}`),
-      ],
+      rangeRow,
       [
         btn(t(lang, "uiHistory"), `s:${symbolId}:hi`),
         btn(t(lang, "uiAlertNew"), `a:new:${symbolId}`, "primary"),
@@ -231,12 +237,12 @@ export function alertHelpKeyboard(lang: Lang): InlineKeyboard {
 
 export function settingsKeyboard(lang: Lang, feePct: number): InlineKeyboard {
   const feeBtn = (n: number) =>
-    btn(feePct === n ? `· ${n}% ·` : `${n}%`, `set:fee:${n}`);
+    btn(`${n}%`, `set:fee:${n}`, feePct === n ? "primary" : undefined);
   return {
     inline_keyboard: [
       [
-        btn(lang === "fa" ? "· 🇮🇷 فارسی ·" : "🇮🇷 فارسی", "set:lang:fa"),
-        btn(lang === "en" ? "· 🇬🇧 EN ·" : "🇬🇧 EN", "set:lang:en"),
+        btn("فارسی", "set:lang:fa", lang === "fa" ? "primary" : undefined),
+        btn("EN", "set:lang:en", lang === "en" ? "primary" : undefined),
       ],
       [feeBtn(0), feeBtn(1), feeBtn(2), feeBtn(5)],
       [btn(t(lang, "uiHome"), "h")],
@@ -329,7 +335,7 @@ export function screenSymbolCard(
 ): Screen {
   return {
     html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo, lang, range),
-    keyboard: symbolCardKeyboard(lang, def.id, range, def.kind),
+    keyboard: symbolCardKeyboard(lang, def.id, range, row?.price ?? null, def.kind),
   };
 }
 
