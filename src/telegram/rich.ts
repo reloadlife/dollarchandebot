@@ -13,6 +13,7 @@ import type { ChartRange } from "../chart/serve";
 import { escapeHtml, formatDelta, formatDeltaQuiet, formatPrice, formatTimeTehran } from "../lib/format";
 import { t } from "../lib/i18n";
 import { compactTable, type TableCell } from "../lib/rich-table";
+import { em } from "./emoji";
 
 function cell(label: string): TableCell {
   return { text: escapeHtml(label) };
@@ -28,7 +29,6 @@ function cardActionRow(
   lang: Lang,
   symbolId: string,
   range: ChartRange,
-  price: number | null,
   mode: "chat" | "link",
 ): string {
   if (mode === "link") {
@@ -36,19 +36,16 @@ function cardActionRow(
     return `<tg-button-row><tg-button type="url" url="${escapeHtml(url)}">${escapeHtml(t(lang, "uiOpen"))}</tg-button></tg-button-row>`;
   }
   const style = (on: boolean) => (on ? ` style="primary"` : "");
-  const copy =
-    price != null
-      ? `<tg-button type="copy_text" text="${Math.round(price)}">${escapeHtml(t(lang, "uiCopy"))}</tg-button>`
-      : "";
+  // Two short rows. A fifth button on one row was clipped to "C…" and could not be tapped.
   return `<tg-button-row>
 <tg-button type="callback_data"${style(range === "24h")} data="s:${symbolId}:24h">24h</tg-button>
 <tg-button type="callback_data"${style(range === "7d")} data="s:${symbolId}:7d">7d</tg-button>
+</tg-button-row>
+<tg-button-row>
 <tg-button type="callback_data" data="s:${symbolId}:hi">${escapeHtml(t(lang, "uiHistory"))}</tg-button>
 <tg-button type="callback_data" data="a:new:${symbolId}">${escapeHtml(t(lang, "uiAlertNew"))}</tg-button>
-${copy}
 </tg-button-row>`;
 }
-import { em } from "./emoji";
 
 function channelUrl(env: Env): string {
   return `https://t.me/${env.CHANNEL_USERNAME}`;
@@ -290,24 +287,25 @@ export function richSettings(
   lang: Lang,
   feePct: number,
 ): string {
-  if (lang === "fa") {
-    return `
-<h2>${em("sparkle")} تنظیمات</h2>
-<p>زبان: <b>fa</b> → <code>/lang en</code></p>
-<p>کارمزد پیش‌فرض: <b>${feePct}%</b> → <code>/fee 2</code></p>
-<p>هشدار: <code>/alert USD above 180000</code> · <code>every</code> = تکراری</p>
-<p>لیست: <code>/alerts</code> · حذف: <code>/unalert ID</code></p>
-<p>تتر صرافی‌ها: <code>/exchanges</code></p>
-<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
-`.trim();
-  }
+  const language = lang === "fa" ? "فارسی" : "English";
+  const rows = compactTable([
+    [
+      { text: escapeHtml(t(lang, "uiLang")) },
+      { text: escapeHtml(language), align: "right", bold: true },
+    ],
+    [
+      { text: escapeHtml(t(lang, "uiFee")) },
+      { text: `${feePct}%`, align: "right", bold: true },
+    ],
+  ]);
+  const lead =
+    lang === "fa"
+      ? "زبان همین گفتگو، و کارمزدی که ماشین‌حساب استفاده می‌کند."
+      : "Language for this chat, and the fee the calculator uses.";
   return `
-<h2>${em("sparkle")} Settings</h2>
-<p>Language: <b>${lang}</b> → <code>/lang fa</code> · <code>/lang en</code></p>
-<p>Default fee: <b>${feePct}%</b> → <code>/fee 2</code></p>
-<p>Alerts: <code>/alert USD above 180000</code> · add <code>every</code> to repeat</p>
-<p>List: <code>/alerts</code> · remove: <code>/unalert ID</code></p>
-<p>USDT exchanges: <code>/exchanges</code></p>
+<h2>${em("sparkle")} ${escapeHtml(t(lang, "uiSettings"))}</h2>
+<p>${escapeHtml(lead)}</p>
+${rows}
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
@@ -643,7 +641,7 @@ ${chartBlock}
 <p>${em("chart")} <b>${escapeHtml(t(lang, "cardDay"))}</b> · ${dayCh}</p>
 ${book}
 <p>${em("clock")} ${timeLive} · ${timeRel}</p>
-${cardActionRow(env, lang, def.id, range, row.price, actions)}
+${cardActionRow(env, lang, def.id, range, actions)}
 <p>${em("channel")} <a href="${channelUrl(env)}">${channel}</a></p>
 `.trim();
 }

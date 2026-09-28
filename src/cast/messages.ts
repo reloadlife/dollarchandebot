@@ -15,6 +15,7 @@ import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
 import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage, editRichMessage } from "../telegram/api";
+import { em } from "../telegram/emoji";
 
 function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
@@ -73,6 +74,12 @@ function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string
   return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر" };
 }
 
+/** Channel deltas use the same premium emoji as the private cards. */
+function premiumDelta(delta: string | null): string {
+  if (!delta) return "—";
+  return delta.replaceAll("📈", em("up")).replaceAll("📉", em("down"));
+}
+
 function head(labels: string[]): TableCell[] {
   return labels.map((label, i) => ({
     text: escapeHtml(label),
@@ -94,7 +101,7 @@ function quoteRow(
       align: "right",
       bold: price != null,
     },
-    { text: escapeHtml(delta ?? "—"), align: "right" },
+    { text: premiumDelta(delta), align: "right" },
   ];
 }
 
@@ -228,7 +235,7 @@ export function renderUsdtSection(
       ])}</details>`
     : "";
 
-  return [`<h3>تتر</h3>`, compactTable(summary), book].filter(Boolean).join("\n");
+  return [`<h3>${em("price")} تتر</h3>`, compactTable(summary), book].filter(Boolean).join("\n");
 }
 
 /**
@@ -273,20 +280,20 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
 
   const out: string[] = [
     `<h2>نرخ بازار آزاد</h2>`,
-    `<p>⏰ ${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
-    `<h3>💱 ارز</h3>`,
+    `<p>${em("clock")} ${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
+    `<h3>${em("price")} ارز</h3>`,
     fxTable,
     fxRest,
-    `<h3>🥇 طلا</h3>`,
+    `<h3>${em("high")} طلا</h3>`,
     goldTable,
-    `<h3>🪙 سکه</h3>`,
+    `<h3>${em("sparkle")} سکه</h3>`,
     coins.note,
     coins.html,
     renderUsdtSection(usdt, usd, exchanges, usdtAgeSec),
-    `<p>📊 ${mood.emoji} <b>${escapeHtml(mood.label)}</b></p>`,
+    `<p>${mood.emoji === "🟢" ? em("up") : em("flat")} <b>${escapeHtml(mood.label)}</b></p>`,
     `<p><i>${escapeHtml(mood.sub)}</i></p>`,
     channelActionRow(env.BOT_USERNAME),
-    `<p>🤖 @${escapeHtml(env.BOT_USERNAME)} · 📣 @${escapeHtml(env.CHANNEL_USERNAME)}</p>`,
+    `<p>${em("channel")} @${escapeHtml(env.BOT_USERNAME)} · @${escapeHtml(env.CHANNEL_USERNAME)}</p>`,
   ];
 
   return out.filter(Boolean).join("\n");

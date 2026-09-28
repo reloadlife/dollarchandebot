@@ -27,7 +27,8 @@ test("tether section is a summary table, then a collapsed buy/sell book", () => 
     [venue("wallex", "والکس", 179400, 179100), venue("nobitex", "نوبیتکس", 178900, 178400)],
     0,
   );
-  expect(html).toContain("<h3>تتر</h3>");
+  expect(html).toContain("<tg-emoji");
+  expect(html).toContain("تتر</h3>");
   expect(html).toContain("179,200");
   expect(html).toContain("+350");
   expect(html).toContain("گران‌تر");

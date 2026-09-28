@@ -10,7 +10,7 @@ import type { SymbolDef, SymbolKind } from "../symbols";
 import { symbolsByKind } from "../symbols";
 import { getAllLatest } from "../db/prices";
 import { t } from "../lib/i18n";
-import { escapeHtml } from "../lib/format";
+import { escapeHtml, formatPrice } from "../lib/format";
 import {
   editEphemeralRichMessage,
   editRichMessage,
@@ -105,7 +105,10 @@ export function homeKeyboard(env: Env, lang: Lang): InlineKeyboard {
           switch_inline_query_current_chat: "",
         },
       ],
-      [{ text: t(lang, "uiChannel"), url: channelUrl(env) }],
+      [
+        btn(t(lang, "uiSettings"), "set"),
+        { text: t(lang, "uiChannel"), url: channelUrl(env) },
+      ],
     ],
   };
 }
@@ -164,15 +167,28 @@ export function symbolListKeyboard(
   return { inline_keyboard: rows };
 }
 
-/** Range, history, alert, and copy live inside the rich message. */
+/** Copy is its own full-width button. A fifth in-message button was clipped and untappable. */
 export function symbolCardKeyboard(
   lang: Lang,
+  price: number | null,
   backKind?: SymbolKind,
 ): InlineKeyboard {
   const back = backKind ? `b:${backKind}:0` : "b:c";
-  return {
-    inline_keyboard: [[btn(t(lang, "uiBack"), back), btn(t(lang, "uiHome"), "h")]],
-  };
+  const rows: InlineBtn[][] = [];
+  if (price != null) {
+    rows.push([
+      {
+        text: `${t(lang, "uiCopy")} ${formatPrice(price)}`,
+        copy_text: { text: String(Math.round(price)) },
+      },
+    ]);
+  }
+  rows.push([
+    btn(t(lang, "uiBack"), back),
+    btn(t(lang, "uiSettings"), "set"),
+    btn(t(lang, "uiHome"), "h"),
+  ]);
+  return { inline_keyboard: rows };
 }
 
 export function historyKeyboard(lang: Lang, symbolId: string): InlineKeyboard {
@@ -241,7 +257,7 @@ export function helpKeyboard(lang: Lang): InlineKeyboard {
   return {
     inline_keyboard: [
       [btn(t(lang, "uiBrowse"), "b:c"), btn(t(lang, "uiAlerts"), "a")],
-      [btn(t(lang, "uiHome"), "h")],
+      [btn(t(lang, "uiSettings"), "set"), btn(t(lang, "uiHome"), "h")],
     ],
   };
 }
@@ -322,7 +338,7 @@ export function screenSymbolCard(
 ): Screen {
   return {
     html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo, lang, range),
-    keyboard: symbolCardKeyboard(lang, def.kind),
+    keyboard: symbolCardKeyboard(lang, row?.price ?? null, def.kind),
   };
 }
 
