@@ -4,6 +4,7 @@ import { PluginPicker } from "@/components/plugin-picker";
 import { RateMarquee } from "@/components/rate-marquee";
 import { Rise } from "@/components/rise";
 import { riseDelay } from "@/lib/motion";
+import { HeroStage } from "@/components/hero-stage";
 import { Totem } from "@/components/totem";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL, CHANNEL_URL } from "@/lib/rates";
@@ -56,7 +57,9 @@ export default function HomePage() {
             </div>
           </div>
           <div className="enter" style={riseDelay(140)}>
-            <Totem />
+            <HeroStage>
+              <Totem />
+            </HeroStage>
           </div>
         </div>
       </section>
