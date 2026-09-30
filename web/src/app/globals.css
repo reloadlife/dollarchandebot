@@ -185,13 +185,17 @@
 }
 
 .totem-well {
-  background: oklch(0.12 0.025 45);
-  color: oklch(0.96 0.02 85);
-  box-shadow: inset 0 14px 22px -16px oklch(0.05 0.02 40);
+  background: oklch(0.13 0.03 48);
+  color: oklch(0.97 0.02 85);
+  --led: oklch(0.92 0.16 88);
+  --led-ghost: oklch(0.32 0.03 55 / 55%);
+  box-shadow:
+    inset 0 0 0 1px oklch(0.92 0.12 80 / 18%),
+    inset 0 18px 28px -20px oklch(0.02 0.02 40);
 }
 
 .totem-dim {
-  color: oklch(0.8 0.05 75);
+  color: oklch(0.84 0.05 85);
 }
 
 .totem-rule {
@@ -222,18 +226,6 @@ textarea {
   to {
     opacity: 1;
     transform: none;
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .totem-well {
-    background: oklch(0.94 0.018 85);
-    color: oklch(0.22 0.04 45);
-    box-shadow: inset 0 14px 20px -16px oklch(0.45 0.06 50 / 40%);
-  }
-
-  .totem-dim {
-    color: oklch(0.4 0.05 45);
   }
 }
 

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { vazirmatn } from "./fonts";
-import { MotionRoot } from "@/components/motion-root";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
@@ -14,10 +13,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fa" dir="rtl" className={`${vazirmatn.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <MotionRoot>
-          <SiteHeader />
-          <div className="flex-1">{children}</div>
-        </MotionRoot>
+        <SiteHeader />
+        <div className="flex-1">{children}</div>
       </body>
     </html>
   );
