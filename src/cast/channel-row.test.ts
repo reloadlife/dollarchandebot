@@ -20,24 +20,20 @@ test("channel row deep-links the four prices into the bot", () => {
   expect(html.startsWith("<tg-button-row>")).toBe(true);
 });
 
-test("tether section is a summary table, then a collapsed buy/sell book", () => {
+test("tether section is a one-line gap, then a collapsed buy/sell book", () => {
   const html = renderUsdtSection(
     179200,
     178850,
     [venue("wallex", "والکس", 179400, 179100), venue("nobitex", "نوبیتکس", 178900, 178400)],
     0,
   );
-  expect(html).toContain("<tg-emoji");
-  expect(html).toContain("تتر</h3>");
-  expect(html).toContain("179,200");
   expect(html).toContain("+350");
-  expect(html).toContain("گران‌تر");
-  expect(html).toContain("ارزان‌ترین خرید");
-  expect(html).toContain("نوبیتکس · 178,900");
-  expect(html).toContain("بهترین فروش");
-  expect(html).toContain("والکس · 179,100");
-  expect(html.indexOf("اختلاف با دلار")).toBeLessThan(html.indexOf("<details>"));
+  expect(html).toContain("گران‌تر از دلار");
+  expect(html).toContain("خرید نوبیتکس · 178,900");
+  expect(html).toContain("فروش والکس · 179,100");
+  expect(html.indexOf("گران‌تر از دلار")).toBeLessThan(html.indexOf("<details>"));
   expect(html).toContain("<summary>خرید و فروش</summary>");
+  expect(html).not.toContain("<h3>");
   expect(html).not.toContain("آربیتراژ");
   expect(html).not.toContain("بالاترین");
 });

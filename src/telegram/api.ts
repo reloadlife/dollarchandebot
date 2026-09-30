@@ -171,6 +171,18 @@ export async function editEphemeralRichMessage(
   }
 }
 
+export async function pinChatMessage(
+  env: Env,
+  chatId: string | number,
+  messageId: number,
+): Promise<true> {
+  return call(env, "pinChatMessage", {
+    chat_id: chatId,
+    message_id: messageId,
+    disable_notification: true,
+  });
+}
+
 export async function unpinChatMessage(
   env: Env,
   chatId: string | number,

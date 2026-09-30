@@ -6,7 +6,6 @@ import { resolveSymbol, type SymbolDef } from "../symbols";
 import {
   escapeHtml,
   formatDelta,
-  formatDeltaQuiet,
   formatJalaliTehran,
   formatPrice,
   formatTimeTehran,
@@ -14,14 +13,14 @@ import {
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
-import { sendMessage, sendPhoto, sendRichMessage, unpinChatMessage } from "../telegram/api";
+import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage, editRichMessage } from "../telegram/api";
 import { em } from "../telegram/emoji";
 
 function unit(env: Env): string {
   return env.PRICE_UNIT || "Toman";
 }
 
-/** Channel FX board — Farsi names (USDT lives in its own section). */
+/** Currencies kept behind «بقیه ارزها». دلار and یورو are on the board. */
 const FX_TICKER: Array<{ id: string; label: string }> = [
   { id: "USD", label: "دلار" },
   { id: "EUR", label: "یورو" },
@@ -33,11 +32,6 @@ const FX_TICKER: Array<{ id: string; label: string }> = [
   { id: "BHD", label: "دینار بحرین" },
 ];
 
-const GOLD_IDS = ["MITHQAL", "GOLD18"] as const;
-const GOLD_LABEL: Record<string, string> = {
-  MITHQAL: "مثقال",
-  GOLD18: "گرم ۱۸",
-};
 const COIN_IDS = ["EMAMI", "AZADI", "HALF", "QUARTER", "GERAMI"] as const;
 const COIN_LABEL: Record<string, string> = {
   EMAMI: "امامی",
@@ -52,34 +46,6 @@ function saneUsdtToman(n: number | null | undefined): n is number {
   return n != null && Number.isFinite(n) && n >= 50_000 && n <= 500_000;
 }
 
-function marketMood(map: Map<string, LatestRow>): { emoji: string; label: string; sub: string } {
-  const goldMoves: Array<"up" | "down"> = [];
-  for (const id of GOLD_IDS) {
-    const r = map.get(id);
-    if (!r || r.prev_price == null || r.prev_price === 0 || r.price === r.prev_price) continue;
-    goldMoves.push(r.price > r.prev_price ? "up" : "down");
-  }
-  const ups = goldMoves.filter((m) => m === "up").length;
-  const downs = goldMoves.filter((m) => m === "down").length;
-
-  if (ups && !downs) {
-    return { emoji: "🟢", label: "کمی مثبت", sub: "طلا کمی سبز · بقیه آرام" };
-  }
-  if (downs && !ups) {
-    return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر · طلا کمی قرمز" };
-  }
-  if (ups && downs) {
-    return { emoji: "🟡", label: "آرام", sub: "بازار متعادل" };
-  }
-  return { emoji: "🟡", label: "آرام", sub: "بیشتر نمادها بدون تغییر" };
-}
-
-/** Channel deltas use the same premium emoji as the private cards. */
-function premiumDelta(delta: string | null): string {
-  if (!delta) return "—";
-  return delta.replaceAll("📈", em("up")).replaceAll("📉", em("down"));
-}
-
 function head(labels: string[]): TableCell[] {
   return labels.map((label, i) => ({
     text: escapeHtml(label),
@@ -88,12 +54,15 @@ function head(labels: string[]): TableCell[] {
   }));
 }
 
-function quoteRow(
-  label: string,
-  price: number | undefined,
-  prev?: number | null,
-): TableCell[] {
-  const delta = price != null ? formatDeltaQuiet(price, prev) : null;
+/** One narrow column: +0.4% or —, no icon and no absolute move. */
+function pctCell(price: number | undefined, prev?: number | null): string {
+  if (price == null || prev == null || prev === 0 || price === prev) return "—";
+  const pct = ((price - prev) / prev) * 100;
+  const sign = pct > 0 ? "+" : "−";
+  return `${sign}${Math.abs(pct).toFixed(1)}%`;
+}
+
+function boardRow(label: string, price: number | undefined, prev?: number | null): TableCell[] {
   return [
     { text: escapeHtml(label) },
     {
@@ -101,54 +70,25 @@ function quoteRow(
       align: "right",
       bold: price != null,
     },
-    { text: premiumDelta(delta), align: "right" },
+    { text: pctCell(price, prev), align: "right" },
   ];
 }
 
-/** Signed spread / bubble, e.g. +850 or −50 */
+function bubblePct(id: string, price: number | undefined, gold18: number | undefined): string {
+  const spec = COIN_SPECS[id];
+  if (price == null || !spec || gold18 == null || gold18 <= 0) return "—";
+  const pct = calcCoinBubble(price, gold18, spec).bubblePct;
+  if (pct === 0) return "0%";
+  const sign = pct > 0 ? "+" : "−";
+  return `${sign}${Math.abs(pct).toFixed(1)}%`;
+}
+
+/** Signed spread, e.g. +850 or −50 */
 function formatSignedSpread(n: number): string {
   const abs = formatPrice(Math.abs(n));
   if (n > 0) return `+${abs}`;
   if (n < 0) return `−${abs}`;
   return "0";
-}
-
-/** Compact bubble tag: حباب +12.3M (+7.5%) */
-function formatBubbleTag(bubble: number, pct: number): string {
-  const sign = bubble > 0 ? "+" : bubble < 0 ? "−" : "";
-  const abs = Math.abs(bubble);
-  // shorten millions for channel scan
-  let amount: string;
-  if (abs >= 1_000_000) {
-    amount = `${(abs / 1_000_000).toFixed(1)}M`;
-  } else if (abs >= 1_000) {
-    amount = `${formatPrice(abs / 1_000)}k`;
-  } else {
-    amount = formatPrice(abs);
-  }
-  const pctStr = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
-  return `حباب ${sign}${amount} (${pctStr})`;
-}
-
-function coinTable(map: Map<string, LatestRow>): { html: string; note: string } {
-  const gold18 = map.get("GOLD18")?.price;
-  const note =
-    gold18 == null ? "<p><i>گرم ۱۸ در دسترس نیست — حباب محاسبه نشد</i></p>" : "";
-  const rows = COIN_IDS.map((id) => {
-    const row = map.get(id);
-    const base = quoteRow(COIN_LABEL[id] ?? id, row?.price, row?.prev_price);
-    const spec = COIN_SPECS[id];
-    let bubble = "—";
-    if (row && spec && gold18 != null && gold18 > 0) {
-      const b = calcCoinBubble(row.price, gold18, spec);
-      bubble = formatBubbleTag(b.bubble, b.bubblePct);
-    }
-    return [...base, { text: escapeHtml(bubble), align: "right" as const }];
-  });
-  return {
-    note,
-    html: compactTable([head(["سکه", "قیمت", "تغییر", "حباب"]), ...rows]),
-  };
 }
 
 type ExMid = ExchangeRow & { midN: number; buyN: number | null; sellN: number | null };
@@ -169,13 +109,9 @@ function normalizeExchanges(exchanges: ExchangeRow[]): ExMid[] {
 /** Older than this and the tether quote is history, not a price. */
 const USDT_STALE_SEC = 30 * 60;
 
-function pairCell(name: string, price: number): TableCell {
-  return { text: `${escapeHtml(name)} · ${formatPrice(price)}`, align: "right", bold: true };
-}
-
 /**
- * تتر on the channel: price, gap versus دلار, where to buy and sell.
- * The full venue book stays collapsed so each post stays scannable.
+ * تتر under the board: gap versus دلار, then the best buy and sell.
+ * The venue book stays collapsed. A stale quote is not compared with دلار.
  */
 export function renderUsdtSection(
   usdtMid: number | undefined,
@@ -184,63 +120,54 @@ export function renderUsdtSection(
   usdtAgeSec = 0,
 ): string {
   const stale = usdtAgeSec > USDT_STALE_SEC;
-  const summary: TableCell[][] = [];
+  const parts: string[] = [];
 
-  if (usdtMid != null) {
-    const age = stale ? ` <i>قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه</i>` : "";
-    summary.push([
-      { text: "قیمت" },
-      { text: `${formatPrice(usdtMid)}${age}`, align: "right", bold: !stale },
-    ]);
-  } else {
-    summary.push([{ text: "قیمت" }, { text: "—", align: "right" }]);
-  }
-
-  // A stale tether quote must not be compared with a live dollar.
-  if (usdtMid != null && usdMid != null && !stale) {
+  if (stale && usdtMid != null) {
+    parts.push(`<p><i>تتر قدیمی · ${Math.round(usdtAgeSec / 60)} دقیقه</i></p>`);
+  } else if (usdtMid != null && usdMid != null) {
     const diff = usdtMid - usdMid;
-    const hint = diff > 0 ? "گران‌تر" : diff < 0 ? "ارزان‌تر" : "هم‌قیمت";
-    summary.push([
-      { text: "اختلاف با دلار" },
-      { text: `${formatSignedSpread(diff)} · ${hint}`, align: "right", bold: true },
-    ]);
+    const hint = diff > 0 ? "گران‌تر از دلار" : diff < 0 ? "ارزان‌تر از دلار" : "هم‌قیمت با دلار";
+    parts.push(`<p>${diff === 0 ? hint : `${formatSignedSpread(diff)} · ${hint}`}</p>`);
   }
 
   const live = normalizeExchanges(exchanges);
   const buyers = live.filter((e) => e.buyN != null);
   const sellers = live.filter((e) => e.sellN != null);
-  const cheapBuy = buyers.length
-    ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a))
-    : null;
-  const bestSell = sellers.length
-    ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a))
-    : null;
-
-  if (cheapBuy?.buyN != null) {
-    summary.push([{ text: "ارزان‌ترین خرید" }, pairCell(cheapBuy.name, cheapBuy.buyN)]);
-  }
-  if (bestSell?.sellN != null) {
-    summary.push([{ text: "بهترین فروش" }, pairCell(bestSell.name, bestSell.sellN)]);
-  }
+  const cheapBuy = buyers.length ? buyers.reduce((a, b) => (b.buyN! < a.buyN! ? b : a)) : null;
+  const bestSell = sellers.length ? sellers.reduce((a, b) => (b.sellN! > a.sellN! ? b : a)) : null;
+  const ends: string[] = [];
+  if (cheapBuy?.buyN != null) ends.push(`خرید ${escapeHtml(cheapBuy.name)} · ${formatPrice(cheapBuy.buyN)}`);
+  if (bestSell?.sellN != null) ends.push(`فروش ${escapeHtml(bestSell.name)} · ${formatPrice(bestSell.sellN)}`);
+  if (ends.length) parts.push(`<p>${ends.join(" · ")}</p>`);
 
   const bookRows = [...live].sort((a, b) => (a.buyN ?? 1e18) - (b.buyN ?? 1e18));
-  const book = bookRows.length
-    ? `<details><summary>خرید و فروش</summary>${compactTable([
+  if (bookRows.length) {
+    parts.push(
+      `<details><summary>خرید و فروش</summary>${compactTable([
         head(["صرافی", "خرید", "فروش"]),
         ...bookRows.map((e) => [
           { text: escapeHtml(e.name) },
           { text: e.buyN != null ? formatPrice(e.buyN) : "—", align: "right" as const },
           { text: e.sellN != null ? formatPrice(e.sellN) : "—", align: "right" as const },
         ]),
-      ])}</details>`
-    : "";
+      ])}</details>`,
+    );
+  }
 
-  return [`<h3>${em("price")} تتر</h3>`, compactTable(summary), book].filter(Boolean).join("\n");
+  return parts.join("\n");
 }
 
+const BOARD: Array<{ id: string; label: string }> = [
+  { id: "USD", label: "دلار" },
+  { id: "EUR", label: "یورو" },
+  { id: "USDT", label: "تتر" },
+  { id: "MITHQAL", label: "مثقال" },
+  { id: "GOLD18", label: "گرم ۱۸" },
+  { id: "EMAMI", label: "امامی" },
+];
+
 /**
- * Channel list · hybrid v2 (FA)
- * Jalali + FX (fa) + طلا/سکه + تتر block + mood + footer
+ * One channel board: six prices, the rest tucked away, tether as a line.
  */
 export async function buildPriceListHtml(env: Env): Promise<string> {
   const [rows, exchanges] = await Promise.all([
@@ -250,53 +177,49 @@ export async function buildPriceListHtml(env: Env): Promise<string> {
   const map = new Map(rows.map((r) => [r.symbol, r]));
   const newest = rows.reduce((m, r) => Math.max(m, r.updated_at), 0);
   const ts = newest || Math.floor(Date.now() / 1000);
-  const mood = marketMood(map);
-
-  const fxHead = head(["ارز", "قیمت", "تغییر"]);
-  const fxOpen = FX_TICKER.filter((x) => x.id === "USD" || x.id === "EUR");
-  const fxMore = FX_TICKER.filter((x) => x.id !== "USD" && x.id !== "EUR");
-  const fxRow = ({ id, label }: { id: string; label: string }) => {
+  const named = (id: string, label: string) => {
     const row = map.get(id);
-    return quoteRow(label, row?.price, row?.prev_price);
+    return boardRow(label, row?.price, row?.prev_price);
   };
-  const fxTable = compactTable([fxHead, ...fxOpen.map(fxRow)]);
-  const fxRest = `<details><summary>بقیه ارزها</summary>${compactTable([
-    fxHead,
-    ...fxMore.map(fxRow),
-  ])}</details>`;
-  const goldTable = compactTable([
-    head(["طلا", "قیمت", "تغییر"]),
-    ...GOLD_IDS.map((id) => {
-      const row = map.get(id);
-      return quoteRow(GOLD_LABEL[id] ?? id, row?.price, row?.prev_price);
-    }),
+
+  const board = compactTable([
+    head(["نماد", "قیمت", "تغییر"]),
+    ...BOARD.map(({ id, label }) => named(id, label)),
   ]);
-  const coins = coinTable(map);
+  const fxMore = FX_TICKER.filter((item) => item.id !== "USD" && item.id !== "EUR");
+  const fxRest = `<details><summary>بقیه ارزها</summary>${compactTable([
+    head(["ارز", "قیمت", "تغییر"]),
+    ...fxMore.map(({ id, label }) => named(id, label)),
+  ])}</details>`;
+
+  const gold18 = map.get("GOLD18")?.price;
+  const moreCoins = COIN_IDS.filter((id) => id !== "EMAMI");
+  const coinRest = `<details><summary>بقیه سکه‌ها</summary>${compactTable([
+    head(["سکه", "قیمت", "تغییر", "حباب"]),
+    ...moreCoins.map((id) => {
+      const row = map.get(id);
+      return [
+        ...named(id, COIN_LABEL[id] ?? id),
+        { text: bubblePct(id, row?.price, gold18), align: "right" as const },
+      ];
+    }),
+  ])}</details>`;
 
   const usd = map.get("USD")?.price;
   const usdtRow = map.get("USDT");
-  const usdt = usdtRow?.price;
   const usdtAgeSec = usdtRow ? Math.max(0, Math.floor(Date.now() / 1000) - usdtRow.updated_at) : 0;
 
-  const out: string[] = [
+  return [
     `<h2>نرخ بازار آزاد</h2>`,
-    `<p>${em("clock")} ${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
-    `<h3>${em("price")} ارز</h3>`,
-    fxTable,
+    `<p>${escapeHtml(formatJalaliTehran(ts))} · تومان</p>`,
+    board,
     fxRest,
-    `<h3>${em("high")} طلا</h3>`,
-    goldTable,
-    `<h3>${em("sparkle")} سکه</h3>`,
-    coins.note,
-    coins.html,
-    renderUsdtSection(usdt, usd, exchanges, usdtAgeSec),
-    `<p>${mood.emoji === "🟢" ? em("up") : em("flat")} <b>${escapeHtml(mood.label)}</b></p>`,
-    `<p><i>${escapeHtml(mood.sub)}</i></p>`,
+    coinRest,
+    renderUsdtSection(usdtRow?.price, usd, exchanges, usdtAgeSec),
     channelActionRow(env.BOT_USERNAME),
-    `<p>${em("channel")} @${escapeHtml(env.BOT_USERNAME)} · @${escapeHtml(env.CHANNEL_USERNAME)}</p>`,
-  ];
-
-  return out.filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Rich tags stripped, for clients or a failed rich send. */
@@ -312,7 +235,7 @@ function htmlToPlain(html: string): string {
 
 /** Channel posts should not ding subscribers. */
 const CHANNEL_SILENT = { disable_notification: true } as const;
-/** Legacy id of the single edited list. Cleared once that post is unpinned. */
+/** Message id of the single pinned price list. Edits stay silent. */
 const KV_LIST_MSG = "cast:list_msg_id";
 
 /** Opens the bot on a symbol. Works from a channel, where callbacks do not. */
@@ -328,29 +251,30 @@ export async function castPriceList(env: Env): Promise<void> {
   }
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
-  await releaseLegacyPin(env, chatId);
+  const existing = await env.CACHE.get(KV_LIST_MSG);
+  const messageId = Number(existing);
+  if (existing && Number.isFinite(messageId) && messageId > 0) {
+    try {
+      await editRichMessage(env, chatId, messageId, text);
+      return;
+    } catch (e) {
+      console.error("edit pinned list failed, sending a new one", e);
+    }
+  }
+  let sentId: number;
   try {
-    await sendRichMessage(env, chatId, text, CHANNEL_SILENT);
+    sentId = (await sendRichMessage(env, chatId, text, CHANNEL_SILENT)).message_id;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("castPriceList rich failed, plain fallback", { chatId, err: msg });
-    await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT);
+    sentId = (await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT)).message_id;
   }
-}
-
-/** The list used to be one edited, pinned post. Unpin it once, then leave the channel as a history. */
-async function releaseLegacyPin(env: Env, chatId: string): Promise<void> {
-  const existing = await env.CACHE.get(KV_LIST_MSG);
-  const messageId = Number(existing);
-  if (!existing || !Number.isFinite(messageId) || messageId <= 0) return;
+  await env.CACHE.put(KV_LIST_MSG, String(sentId));
   try {
-    await unpinChatMessage(env, chatId, messageId);
+    await pinChatMessage(env, chatId, sentId);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("unpin price list failed", msg);
-    if (!/not found|not pinned|message_id_invalid/i.test(msg)) return;
+    console.error("pin price list failed", e);
   }
-  await env.CACHE.delete(KV_LIST_MSG);
 }
 
 export async function buildSymbolCaption(
