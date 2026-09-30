@@ -29,7 +29,8 @@ function Digit({ char, height }: { char: string; height: number }) {
         background: lit.includes(id) ? "var(--led)" : "var(--led-ghost)",
         boxShadow: lit.includes(id) ? "0 0 8px color-mix(in oklch, var(--led) 75%, transparent)" : "none",
         borderRadius: 2,
-        transition: "background-color 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        transition:
+          "background-color 420ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1)",
         ...style,
       }}
     />

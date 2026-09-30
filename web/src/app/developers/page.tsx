@@ -23,7 +23,8 @@ const routes = [
 const fields = [
   ["price", "آخرین قیمت، تومان"],
   ["prev_price", "قیمت قبلی، برای دیدن تغییر"],
-  ["buy و sell", "دو سوی همان منبع. در صرافی، buy تومانی است که برای یک تتر می‌پردازی."],
+  ["buy", "سوی خرید، تومان. در صرافی، تومانی است که برای یک تتر می‌پردازی."],
+  ["sell", "سوی فروش، تومان. در صرافی، تومانی است که برای یک تتر می‌گیری."],
   ["unit", "همیشه toman"],
   ["updated_at", "زمان یونیکس"],
 ];
@@ -78,9 +79,7 @@ export default function DevelopersPage() {
       <dl className="mt-4 space-y-4">
         {fields.map(([name, note]) => (
           <div key={name}>
-            <dt className="font-mono text-sm" dir="ltr">
-              {name}
-            </dt>
+            <dt className="font-mono text-sm">{name}</dt>
             <dd className="mt-1 text-sm text-muted-foreground">{note}</dd>
           </div>
         ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { fa } from "@/lib/utils";
 
 const PLUGINS = [
@@ -48,23 +48,45 @@ const PLUGINS = [
   },
 ] as const;
 
-const tabOn =
-  "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] bg-muted px-3 text-sm font-semibold text-foreground ring-1 ring-brand";
-const tabOff =
-  "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] px-3 text-sm text-muted-foreground hover:text-foreground";
+const tab =
+  "relative inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] px-3 text-sm font-semibold transition-colors duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]";
 const download =
   "inline-flex h-11 w-full items-center justify-center whitespace-nowrap rounded-[16px] bg-brand px-4 text-sm font-semibold text-brand-foreground transition-transform duration-150 ease-out hover:brightness-110 active:scale-[0.98] sm:w-auto";
 
 export function PluginPicker() {
   const [id, setId] = useState<(typeof PLUGINS)[number]["id"]>("woo");
   const item = PLUGINS.find((plugin) => plugin.id === id) ?? PLUGINS[0];
+  const listRef = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const button = document.getElementById(`plugin-tab-${id}`);
+    if (!list || !button) return;
+
+    const place = () => {
+      const listBox = list.getBoundingClientRect();
+      const buttonBox = button.getBoundingClientRect();
+      setPill({
+        x: buttonBox.left - listBox.left,
+        y: buttonBox.top - listBox.top,
+        w: buttonBox.width,
+        h: buttonBox.height,
+      });
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [id]);
 
   return (
-    <div className="mt-8 rounded-[16px] border border-border bg-card p-5 sm:p-7">
+    <div className="lift rounded-[16px] border border-border bg-card p-5 sm:p-7">
       <div
+        ref={listRef}
         role="tablist"
         aria-label="افزونه"
-        className="grid grid-cols-3 gap-2 sm:flex"
+        className="relative grid grid-cols-3 gap-2 sm:flex"
         onKeyDown={(event) => {
           const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[role=tab]"));
           const index = tabs.indexOf(document.activeElement as HTMLElement);
@@ -76,6 +98,13 @@ export function PluginPicker() {
           next.click();
         }}
       >
+        {pill ? (
+          <span
+            aria-hidden
+            className="tab-pill absolute top-0 left-0 rounded-[16px] bg-brand"
+            style={{ width: pill.w, height: pill.h, transform: `translate(${pill.x}px, ${pill.y}px)` }}
+          />
+        ) : null}
         {PLUGINS.map((plugin) => {
           const on = plugin.id === item.id;
           return (
@@ -88,9 +117,9 @@ export function PluginPicker() {
               aria-controls="plugin-panel"
               tabIndex={on ? 0 : -1}
               onClick={() => setId(plugin.id)}
-              className={on ? tabOn : tabOff}
+              className={`${tab} ${on ? "text-brand-foreground" : "text-foreground/75 hover:text-foreground"}`}
             >
-              {plugin.title}
+              <span className="relative">{plugin.title}</span>
             </button>
           );
         })}
@@ -106,26 +135,25 @@ export function PluginPicker() {
         <div>
           <h3 className="text-2xl font-semibold">{item.title}</h3>
           <p className="mt-2 max-w-[48ch] text-sm leading-7 text-muted-foreground">{item.body}</p>
-          <ol className="mt-5 space-y-2 text-sm leading-7">
+          <ol className="mt-5 space-y-3 text-sm leading-7">
             {item.steps.map((step, index) => (
               <li key={step} className="flex gap-3">
-                <span className="w-5 shrink-0 text-muted-foreground">{fa(index + 1)}</span>
-                <span>{step}</span>
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
+                  {fa(index + 1)}
+                </span>
+                <span className="pt-0.5">{step}</span>
               </li>
             ))}
           </ol>
         </div>
-        <div className="rounded-[16px] bg-muted px-4 py-5">
-          <p className="text-sm text-foreground">
-            {item.code ? (
-              <span className="inline-block font-mono" dir="ltr">
-                {item.detail}
-              </span>
-            ) : (
-              item.detail
-            )}
-          </p>
-          <a href={item.href} download className={`${download} mt-5`}>
+        <div>
+          <div className="totem-well rounded-[16px] px-4 py-5">
+            <p className="text-xs text-[oklch(0.84_0.05_85)]">{item.code ? "نمونه" : "حساب قیمت"}</p>
+            <p className="mt-3 text-lg font-medium leading-8 text-[oklch(0.92_0.16_88)]" dir={item.code ? "ltr" : undefined}>
+              {item.code ? <span className="font-mono text-base">{item.detail}</span> : item.detail}
+            </p>
+          </div>
+          <a href={item.href} download className={`${download} mt-4`}>
             {item.action}
           </a>
         </div>

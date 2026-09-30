@@ -1,12 +1,33 @@
 import Link from "next/link";
+import { CopyBlock } from "@/components/copy-block";
 import { PluginPicker } from "@/components/plugin-picker";
 import { RateMarquee } from "@/components/rate-marquee";
+import { Rise } from "@/components/rise";
+import { riseDelay } from "@/lib/motion";
 import { Totem } from "@/components/totem";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
-import { BOT_URL, CHANNEL_URL } from "@/lib/rates";
+import { API_BASE, BOT_URL, CHANNEL_URL } from "@/lib/rates";
+import { fa } from "@/lib/utils";
 
 const quiet =
   "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-transform duration-150 ease-out hover:bg-muted active:scale-[0.98]";
+
+const curl = `curl -H "Authorization: Bearer KEY" \\\n  ${API_BASE}/api/v1/symbols/USD`;
+
+const apiSteps = [
+  ["کلید بگیر", "ربات را باز کن و /key را بفرست. کلید را یک بار می‌بینی."],
+  ["درخواست بفرست", "کلید را در Authorization: Bearer بگذار و نماد را صدا بزن."],
+  ["قیمت را نشان بده", "price تومان است. نمودار /chart/USD.png کلید نمی‌خواهد."],
+] as const;
+
+const fields = [
+  ["price", "آخرین قیمت، تومان"],
+  ["prev_price", "قیمت قبلی، برای دیدن تغییر"],
+  ["buy", "سوی خرید، تومان"],
+  ["sell", "سوی فروش، تومان"],
+  ["unit", "همیشه toman"],
+  ["updated_at", "زمان یونیکس"],
+] as const;
 
 export default function HomePage() {
   return (
@@ -14,56 +35,103 @@ export default function HomePage() {
       <section className="totem-scene">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16 lg:py-20">
           <div>
-            <p className="text-sm font-medium text-foreground/70">بازار آزاد · تومان</p>
-            <h1 className="mt-3 text-balance text-4xl font-semibold leading-[1.35] text-foreground lg:text-5xl">
+            <p className="enter text-sm font-medium text-foreground/70">بازار آزاد · تومان</p>
+            <h1
+              className="enter mt-3 text-balance text-4xl font-semibold leading-[1.35] text-foreground lg:text-5xl"
+              style={riseDelay(80)}
+            >
               نرخ دلار، داخل <span className="text-brand">قیمت فروشگاه.</span>
             </h1>
-            <p className="mt-4 max-w-[36ch] text-base leading-8 text-foreground/75">
+            <p
+              className="enter mt-4 max-w-[36ch] text-base leading-8 text-foreground/75"
+              style={riseDelay(160)}
+            >
               افزونه‌های رایگان وردپرس، ووکامرس و WHMCS قیمت فروشگاه را با نرخ بازار آزاد تازه می‌کنند.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="enter mt-6 flex flex-wrap gap-3" style={riseDelay(240)}>
               <ShineButton href="#plugins">انتخاب افزونه</ShineButton>
               <Link href="/board/" className={quiet}>
                 دیدن تابلو
               </Link>
             </div>
           </div>
-          <Totem />
+          <div className="enter" style={riseDelay(140)}>
+            <Totem />
+          </div>
         </div>
       </section>
 
       <RateMarquee />
 
-      <section id="plugins" className="scroll-mt-20">
-        <div className="mx-auto max-w-6xl px-4 py-16 lg:py-20">
-          <h2 className="max-w-[18ch] text-3xl font-semibold leading-snug text-foreground">
-            قیمت فروشگاه با همین نرخ عوض می‌شود.
-          </h2>
-          <p className="mt-3 max-w-[42ch] text-foreground/75">
-            یکی را انتخاب کن. هر سه رایگان‌اند. کلید را با /key از ربات بگیر.
-          </p>
-          <PluginPicker />
+      <section id="plugins" className="scroll-mt-20 border-t border-border">
+        <div className="mx-auto grid max-w-6xl items-start gap-8 px-4 py-16 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:py-20">
+          <Rise>
+            <p className="text-sm font-semibold text-brand">افزونه‌ها</p>
+            <h2 className="mt-2 max-w-[16ch] text-3xl font-semibold leading-snug text-foreground">
+              قیمت فروشگاه با همین نرخ عوض می‌شود.
+            </h2>
+            <p className="mt-3 max-w-[36ch] text-foreground/75">
+              هر سه رایگان‌اند. یکی را انتخاب کن. کلید را با /key از ربات بگیر.
+            </p>
+          </Rise>
+          <Rise delay={120}>
+            <PluginPicker />
+          </Rise>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-6xl items-start gap-10 px-4 py-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:py-20">
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground">همان نرخ، برای کد</h2>
-          <p className="mt-3 max-w-[42ch] text-foreground/75">
-            قیمت‌ها تومان است. کلید را ربات می‌دهد. نمودار بدون کلید باز می‌شود.
-          </p>
-          <Link href="/developers/" className="mt-4 inline-flex text-sm font-semibold text-brand">
-            راهنمای API
-          </Link>
-        </div>
-        <div className="rounded-[16px] border border-border bg-card p-6">
-          <p className="text-sm leading-7 text-foreground/75">همان عدد، در کانال و در ربات.</p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <a href={CHANNEL_URL} className={quiet}>
-              کانال
-            </a>
+      <section id="api" className="scroll-mt-20 border-t border-border">
+        <div className="mx-auto max-w-6xl px-4 py-16 lg:py-20">
+          <Rise>
+            <p className="text-sm font-semibold text-brand">API</p>
+            <h2 className="mt-2 max-w-[18ch] text-3xl font-semibold leading-snug text-foreground">
+              از کلید تا اولین قیمت، سه قدم.
+            </h2>
+            <p className="mt-3 max-w-[48ch] text-foreground/75">
+              برنامه به‌جای یک انسان قیمت را می‌پرسد و جواب را به تومان می‌گیرد. هر کلید حدود ۶۰ درخواست در دقیقه.
+            </p>
+          </Rise>
+          <Rise list stagger className="mt-8 grid gap-4 lg:grid-cols-3">
+            {apiSteps.map(([title, body], index) => (
+              <li
+                key={title}
+                className="rise-child lift rounded-[16px] border border-border bg-card p-5"
+                style={riseDelay(index * 90)}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
+                    {fa(index + 1)}
+                  </span>
+                  <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+                </div>
+                <p className="mt-3 text-sm leading-7 text-foreground/75">{body}</p>
+              </li>
+            ))}
+          </Rise>
+          <Rise stagger className="mt-8 grid items-start gap-4 lg:grid-cols-2">
+            <div className="rise-child">
+              <CopyBlock text={curl} label="کپی دستور" caption="GET /api/v1/symbols/USD" />
+            </div>
+            <div className="rise-child overflow-hidden rounded-[16px] border border-border" style={riseDelay(120)}>
+              <div className="flex h-[60px] items-center bg-[oklch(0.1_0.025_48)] px-4">
+                <p className="text-sm font-semibold text-[oklch(0.84_0.05_85)]">پاسخ</p>
+              </div>
+              <dl className="bg-card px-4">
+                {fields.map(([name, note]) => (
+                  <div key={name} className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0">
+                    <dt className="font-mono text-sm text-brand">{name}</dt>
+                    <dd className="text-sm text-foreground/75">{note}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </Rise>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/developers/" className={quiet}>
+              راهنمای کامل
+            </Link>
             <a href={BOT_URL} className={quiet}>
-              ربات
+              گرفتن کلید
             </a>
           </div>
         </div>
