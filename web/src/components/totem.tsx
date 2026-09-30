@@ -104,7 +104,13 @@ export function Totem() {
             return (
               <div key={row.id}>
                 <p className="totem-dim mb-2 text-sm">
-                  {name} <span dir="ltr">{row.id}</span>
+                  {name}
+                  {name !== row.id ? (
+                    <>
+                      {" "}
+                      <span dir="ltr">{row.id}</span>
+                    </>
+                  ) : null}
                 </p>
                 <Readout
                   value={price}

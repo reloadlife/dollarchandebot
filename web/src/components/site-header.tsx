@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GradientText } from "@/components/vibefarsi/gradient-text";
 import { BOT_URL, CHANNEL_URL } from "@/lib/rates";
 
 const links = [
@@ -13,10 +14,10 @@ const links = [
 export function SiteHeader() {
   const pathname = usePathname();
   return (
-    <header className="h-16 border-b border-border">
+    <header className="sticky top-0 z-40 h-16 border-b border-border/80 bg-background/75 backdrop-blur-md">
       <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4">
         <Link href="/" className="shrink-0 text-sm font-semibold">
-          دلارچنده
+          <GradientText duration={8}>دلارچنده</GradientText>
         </Link>
         <nav className="flex items-center gap-4 overflow-x-auto whitespace-nowrap text-sm [scrollbar-width:none]">
           {links.map((link) => {
