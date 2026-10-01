@@ -145,6 +145,9 @@ export function PluginPicker() {
               </li>
             ))}
           </ol>
+          <a href="/docs/" className="mt-5 inline-flex text-sm font-semibold text-brand">
+            راهنمای نصب
+          </a>
         </div>
         <div>
           <div className="totem-well rounded-[16px] px-4 py-5">

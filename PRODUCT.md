@@ -20,7 +20,7 @@ DollarChande publishes free-market toman rates for FX, gold, coins, and tether. 
 
 ## Positioning
 
-One public rate, no key, reused by the channel, the bot, the website, and installable shop plugins. A neighboring price site that only shows a number cannot update a WooCommerce catalog or a WHMCS currency.
+One public rate, reused by the channel, the bot, the website, and installable shop plugins. The website may read it without a key. Plugins send a key the bot issues. A neighboring price site that only shows a number cannot update a WooCommerce catalog or a WHMCS currency.
 
 ## Operating Context
 
@@ -41,6 +41,6 @@ Live quotes from `GET /api/v1/latest`. Chart PNGs at `/chart/{ID}.png`. No custo
 ## Product Principles
 
 - The number on the site is the number in the shop.
-- Free means no account and no key for reading rates.
+- Free means no account. The public site may read rates without a key. Plugins send a bot-issued key.
 - Plugins do one job: fetch the rate and write the price.
 - Persian first. Latin only for code, symbols, and endpoints.

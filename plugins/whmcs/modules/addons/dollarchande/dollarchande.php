@@ -8,7 +8,7 @@ if (!function_exists("dollarchande_config")) {
     function dollarchande_config() {
         return array(
             "name" => "DollarChande",
-            "description" => "Writes a free-market toman rate into one WHMCS currency. No API key.",
+            "description" => "Writes a free-market toman rate into one WHMCS currency. The bot issues the API key.",
             "version" => "1.0.0",
             "author" => "DollarChande",
             "language" => "english",

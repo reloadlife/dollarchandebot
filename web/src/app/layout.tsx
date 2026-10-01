@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { vazirmatn } from "./fonts";
 import { MotionRoot } from "@/components/motion-root";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <MotionRoot>
           <SiteHeader />
           <div className="flex-1">{children}</div>
+          <SiteFooter />
         </MotionRoot>
       </body>
     </html>

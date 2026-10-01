@@ -7,7 +7,8 @@ import { BOT_URL } from "@/lib/rates";
 const links = [
   { href: "/#plugins", label: "افزونه‌ها" },
   { href: "/dashboard/", label: "داشبورد", match: "/dashboard" },
-  { href: "/board/", label: "تابلو", match: "/board" },
+  { href: "/docs/", label: "راهنما", match: "/docs" },
+  { href: "/board/", label: "تابلو", match: "/board", desktop: true },
   { href: "/developers/", label: "API", match: "/developers", desktop: true },
 ];
 

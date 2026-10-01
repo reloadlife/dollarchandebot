@@ -2,7 +2,7 @@
 /**
  * Plugin Name: دلارچنده
  * Plugin URI: https://dollarchande-web.pages.dev/
- * Description: نرخ بازار آزاد را نشان می‌دهد. کلید نمی‌خواهد.
+ * Description: نرخ بازار آزاد را نشان می‌دهد. کلید را از ربات بگیر.
  * Version: 1.0.0
  * Requires at least: 6.0
  * Requires PHP: 7.4

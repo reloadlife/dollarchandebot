@@ -7,7 +7,7 @@ import { riseDelay } from "@/lib/motion";
 import { HeroStage } from "@/components/hero-stage";
 import { Totem } from "@/components/totem";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
-import { API_BASE, BOT_URL, CHANNEL_URL } from "@/lib/rates";
+import { API_BASE, BOT_URL } from "@/lib/rates";
 import { fa } from "@/lib/utils";
 
 const quiet =
@@ -140,23 +140,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="mx-auto flex max-w-6xl gap-5 border-t border-border px-4 py-6 text-sm text-muted-foreground">
-        <Link href="/dashboard/" className="hover:text-foreground">
-          داشبورد
-        </Link>
-        <Link href="/board/" className="hover:text-foreground">
-          تابلو
-        </Link>
-        <a href={CHANNEL_URL} className="hover:text-foreground">
-          کانال
-        </a>
-        <a href={BOT_URL} className="hover:text-foreground">
-          ربات
-        </a>
-        <Link href="/developers/" className="hover:text-foreground">
-          API
-        </Link>
-      </footer>
     </main>
   );
 }

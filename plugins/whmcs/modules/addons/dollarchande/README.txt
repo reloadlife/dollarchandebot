@@ -1,14 +1,14 @@
 DollarChande for WHMCS
 =======================
 
-Puts the free-market rate into one currency. No API key.
+Puts the free-market rate into one currency. The Telegram bot issues the API key (/key).
 
 Install
 -------
 
 1. Copy `modules/addons/dollarchande` into the WHMCS `modules/addons` directory.
 2. Configuration, Addon Modules. Activate DollarChande.
-3. Set API base, symbol, currency id, and multiplier.
+3. Set API base, the bot API key, symbol, currency id, and multiplier.
 4. Open the addon and press Update now.
 
 The currency id is `tblcurrencies.id` for the client currency (toman or rial).
