@@ -6,6 +6,8 @@ const links = [
   { href: "/docs/", label: "راهنما" },
   { href: "/board/", label: "تابلو" },
   { href: "/developers/", label: "API" },
+  { href: "/privacy/", label: "حریم خصوصی" },
+  { href: "/terms/", label: "شرایط" },
   { href: CHANNEL_URL, label: "کانال", external: true },
   { href: BOT_URL, label: "ربات", external: true },
 ];
