@@ -6,6 +6,7 @@ import { BOT_URL } from "@/lib/rates";
 
 const links = [
   { href: "/#plugins", label: "افزونه‌ها" },
+  { href: "/dashboard/", label: "داشبورد", match: "/dashboard" },
   { href: "/board/", label: "تابلو", match: "/board" },
   { href: "/developers/", label: "API", match: "/developers", desktop: true },
 ];
@@ -18,7 +19,7 @@ export function SiteHeader() {
         <Link href="/" className="shrink-0 text-base font-semibold text-foreground">
           دلارچنده
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="flex min-w-0 items-center gap-1 overflow-x-auto text-sm">
           {links.map((link) => {
             const on = link.match ? pathname === link.match || pathname.startsWith(`${link.match}/`) : false;
             return (

@@ -51,8 +51,8 @@ export default function HomePage() {
             </p>
             <div className="enter mt-6 flex flex-wrap gap-3" style={riseDelay(240)}>
               <ShineButton href="#plugins">انتخاب افزونه</ShineButton>
-              <Link href="/board/" className={quiet}>
-                دیدن تابلو
+              <Link href="/dashboard/" className={quiet}>
+                داشبورد فروشگاه
               </Link>
             </div>
           </div>
@@ -141,6 +141,9 @@ export default function HomePage() {
       </section>
 
       <footer className="mx-auto flex max-w-6xl gap-5 border-t border-border px-4 py-6 text-sm text-muted-foreground">
+        <Link href="/dashboard/" className="hover:text-foreground">
+          داشبورد
+        </Link>
         <Link href="/board/" className="hover:text-foreground">
           تابلو
         </Link>
