@@ -6,6 +6,7 @@ import { Rise } from "@/components/rise";
 import { riseDelay } from "@/lib/motion";
 import { HeroStage } from "@/components/hero-stage";
 import { Totem } from "@/components/totem";
+import { PageWash } from "@/components/page-wash";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
 import { fa } from "@/lib/utils";
@@ -33,8 +34,9 @@ const fields = [
 export default function HomePage() {
   return (
     <main>
-      <section className="totem-scene">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16 lg:py-20">
+      <section className="totem-scene relative overflow-hidden">
+        <PageWash />
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16 lg:py-20">
           <div>
             <p className="enter text-sm font-medium text-foreground/70">بازار آزاد · تومان</p>
             <h1

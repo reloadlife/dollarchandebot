@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 
 export const metadata: Metadata = {
@@ -19,8 +20,9 @@ export default function TermsPage() {
   return (
     <main>
       <section className="totem-scene relative overflow-hidden">
+        <PageWash />
         <GirihBackground className="opacity-30" />
-        <div className="relative mx-auto max-w-3xl px-4 py-12 lg:py-16">
+        <div className="relative z-10 mx-auto max-w-3xl px-4 py-12 lg:py-16">
           <p className="text-sm font-medium text-foreground/70">شرایط استفاده</p>
           <h1 className="mt-3 text-4xl font-semibold leading-[1.35]">نرخ آزاد است. تصمیم با توست.</h1>
           <p className="mt-4 max-w-[46ch] leading-8 text-foreground/75">

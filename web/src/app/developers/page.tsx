@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyBlock } from "@/components/copy-block";
+import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
@@ -34,8 +35,9 @@ export default function DevelopersPage() {
   return (
     <main>
       <section className="totem-scene relative overflow-hidden">
+        <PageWash />
         <GirihBackground className="opacity-30" />
-        <div className="relative mx-auto max-w-3xl px-4 py-12 lg:py-16">
+        <div className="relative z-10 mx-auto max-w-3xl px-4 py-12 lg:py-16">
           <p className="text-sm font-medium text-foreground/70">API · نسخه ۱</p>
           <h1 className="mt-3 text-4xl font-semibold leading-[1.35]">همان نرخ، برای کد.</h1>
           <p className="mt-4 max-w-[48ch] leading-8 text-foreground/75">
@@ -54,7 +56,7 @@ export default function DevelopersPage() {
             <article className="rounded-[16px] border border-border bg-card px-5 py-5">
               <h3 className="text-lg font-semibold">سایت</h3>
               <p className="mt-2 leading-8 text-foreground/75">
-                اگر هدر Origin برابر https://dollarchande.live باشد، مرورگر همان سایت می‌تواند کلید نفرستد. تابلو از همین استثنا استفاده می‌کند.
+                اگر هدر Origin برابر https://dollarchande.live یا https://dollarchande-web.pages.dev باشد، مرورگر همان سایت می‌تواند کلید نفرستد. هر مبدأ دیگری این استثنا را ندارد. تابلو از همین استثنا استفاده می‌کند.
               </p>
             </article>
             <article className="rounded-[16px] border border-border bg-card px-5 py-5">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyBlock } from "@/components/copy-block";
 import { Rise } from "@/components/rise";
+import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { BOT_URL } from "@/lib/rates";
@@ -71,8 +72,9 @@ export default function DocsPage() {
   return (
     <main>
       <section className="totem-scene relative overflow-hidden">
+        <PageWash />
         <GirihBackground className="opacity-30" />
-        <div className="relative mx-auto max-w-6xl px-4 py-12 lg:py-16">
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 lg:py-16">
           <p className="text-sm font-medium text-foreground/70">راهنما · نصب</p>
           <h1 className="mt-3 max-w-[16ch] text-balance text-4xl font-semibold leading-[1.35]">
             افزونه را بگذار. نرخ را خودش بنویسد.
@@ -103,7 +105,7 @@ export default function DocsPage() {
             <p className="text-sm font-semibold text-brand">کلید</p>
             <h2 className="mt-2 text-2xl font-semibold">ربات کلید را یک بار نشان می‌دهد.</h2>
             <p className="mt-3 leading-8 text-foreground/75">
-              در گفتگوی خصوصی /key را بفرست. همان رشته را در تنظیمات افزونه بگذار. سایت خودش، وقتی از dollarchande.live باز شود، برای خواندن تابلو کلید نمی‌فرستد. افزونه، و هر برنامه دیگری، باید بفرستد.
+              در گفتگوی خصوصی /key را بفرست. همان رشته را در تنظیمات افزونه بگذار. سایت خودش، وقتی Origin آن https://dollarchande.live یا https://dollarchande-web.pages.dev باشد، برای خواندن تابلو کلید نمی‌فرستد. افزونه، و هر برنامه دیگری، باید بفرستد.
             </p>
           </section>
         </Rise>

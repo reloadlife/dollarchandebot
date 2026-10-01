@@ -60,10 +60,11 @@ export const BackgroundBeams = React.memo(
       "M-37 -581C-37 -581 31 -176 495 -49C959 78 1027 483 1027 483",
     ];
     if (!ready) {
-      return <div aria-hidden className={cn("absolute inset-0", className)} />;
+      return <div aria-hidden data-aceternity="background-beams" className={cn("absolute inset-0", className)} />;
     }
     return (
       <div
+        data-aceternity="background-beams"
         className={cn(
           "absolute inset-0 flex h-full w-full items-center justify-center [mask-repeat:no-repeat] [mask-size:40px]",
           className,

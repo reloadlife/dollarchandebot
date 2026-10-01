@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Board } from "@/components/board";
 import { ShopBoard } from "@/components/shop-board";
+import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 
@@ -17,8 +18,9 @@ export default function DashboardPage() {
   return (
     <main>
       <section className="totem-scene relative overflow-hidden">
+        <PageWash />
         <GirihBackground className="opacity-30" />
-        <div className="relative mx-auto max-w-6xl px-4 py-12 lg:py-16">
+        <div className="relative z-10 mx-auto max-w-6xl px-4 py-12 lg:py-16">
           <p className="text-sm font-medium text-foreground/70">فروشگاه · بدون حساب</p>
           <h1 className="mt-3 max-w-[18ch] text-balance text-4xl font-semibold leading-[1.35] text-foreground">
             نرخ‌هایی که افزونه می‌نویسد.

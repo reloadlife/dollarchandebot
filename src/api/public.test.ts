@@ -45,6 +45,8 @@ test("built API document lists routes, fields, and the key rule", async () => {
   expect(html).toContain("1");
   expect(html).toContain("90");
   expect(html).toContain("Origin");
+  expect(html).toContain("https://dollarchande.live");
+  expect(html).toContain("https://dollarchande-web.pages.dev");
   expect(html).toContain("401");
   expect(html).toContain("افزونه بدون کلید کار نمی‌کند");
   expect(html).not.toContain("No API key");

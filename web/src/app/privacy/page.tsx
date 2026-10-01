@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 
 export const metadata: Metadata = {
@@ -19,8 +20,9 @@ export default function PrivacyPage() {
   return (
     <main>
       <section className="totem-scene relative overflow-hidden">
+        <PageWash />
         <GirihBackground className="opacity-30" />
-        <div className="relative mx-auto max-w-3xl px-4 py-12 lg:py-16">
+        <div className="relative z-10 mx-auto max-w-3xl px-4 py-12 lg:py-16">
           <p className="text-sm font-medium text-foreground/70">حریم خصوصی</p>
           <h1 className="mt-3 text-4xl font-semibold leading-[1.35]">چه چیزی نگه داشته می‌شود.</h1>
           <p className="mt-4 max-w-[46ch] leading-8 text-foreground/75">
@@ -49,7 +51,7 @@ export default function PrivacyPage() {
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">درخواست از سایت</h2>
           <p className="mt-3 leading-8 text-foreground/75">
-            تابلوی سایت از مبدأ dollarchande.live بدون کلید نرخ را می‌خواند. سقف این خواندن با نشانی اتصال اعمال می‌شود و آن نشانی در جدول‌های ما نوشته نمی‌شود. بقیه کلاینت‌ها کلید می‌فرستند. سقف هر کلید حدود ۶۰ درخواست در دقیقه است. سایت ابزار تحلیل جداگانه‌ای نمی‌گذارد.
+            تابلوی سایت از مبدأ https://dollarchande.live یا https://dollarchande-web.pages.dev بدون کلید نرخ را می‌خواند. سقف این خواندن با نشانی اتصال اعمال می‌شود و آن نشانی در جدول‌های ما نوشته نمی‌شود. بقیه کلاینت‌ها کلید می‌فرستند. سقف هر کلید حدود ۶۰ درخواست در دقیقه است. سایت ابزار تحلیل جداگانه‌ای نمی‌گذارد.
           </p>
         </section>
 
