@@ -22,6 +22,10 @@ curl -H "Authorization: Bearer KEY" \
 
 `GET /chart/USD.png` needs no key. Add `?r=7d` for seven days.
 
+## MCP
+
+POST `https://api.dollarchande.live/mcp` with the same key and `Accept: application/json`. Protocol `2025-03-26`. Stateless. Tools: `list_symbols`, `get_quote`, `get_latest`, `get_ticks`, `get_ohlc`, `get_exchanges`. The minute ceiling is shared with the REST API. Do not invent a price when the call fails. Disclaimer: https://dollarchande.live/disclaimer/
+
 ## Routes
 
 - `GET /api/v1/latest` — `{ unit, count, quotes }`

@@ -36,5 +36,13 @@ curl -H "Authorization: Bearer KEY" \
 
 JPY ده ین است، AMD ده درام، IQD صد دینار. شناسه نیم‌سکه HALF است و `nim` هم به آن می‌رسد. OUNCE اونس طلاست و گرم ۱۸ عیار نیست.
 
+## MCP
+
+POST https://api.dollarchande.live/mcp
+
+کلید همان کلید ربات است. پروتکل Streamable HTTP، نسخه 2025-03-26، بدون نشست. ابزارها: list_symbols، get_quote، get_latest، get_ticks، get_ohlc، get_exchanges. سقف با API مشترک است.
+
+سلب مسئولیت: https://dollarchande.live/disclaimer/
+
 مرجع کامل: https://dollarchande.live/llms-full.txt
 صفحه: https://dollarchande.live/developers/

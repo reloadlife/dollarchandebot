@@ -113,6 +113,25 @@ export default function DevelopersPage() {
             </Link>
           </p>
         </section>
+
+        <section className="mt-12">
+          <h2 className="text-2xl font-semibold">MCP</h2>
+          <p className="mt-4 leading-8 text-foreground/75">
+            عامل‌ها همان کلید را به POST /mcp می‌فرستند. پروتکل Streamable HTTP است و نشست ذخیره نمی‌شود. ابزارها list_symbols، get_quote، get_latest، get_ticks، get_ohlc و get_exchanges هستند. سقف با API مشترک است.
+          </p>
+          <div className="mt-4">
+            <CopyBlock
+              text={`curl -H "Authorization: Bearer KEY" -H "Accept: application/json" \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' \\\n  ${API_BASE}/mcp`}
+              label="کپی دستور"
+              caption="POST /mcp"
+            />
+          </div>
+          <p className="mt-4 text-sm">
+            <Link href="/disclaimer/" className="font-semibold text-brand">
+              سلب مسئولیت
+            </Link>
+          </p>
+        </section>
       </div>
     </main>
   );

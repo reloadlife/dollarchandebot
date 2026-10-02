@@ -13,6 +13,11 @@ The site is https://dollarchande.live. The API is https://api.dollarchande.live.
 - [API](https://dollarchande.live/developers.md): مسیرها، کلید و شکل پاسخ. صفحه: https://dollarchande.live/developers/
 - [حریم خصوصی](https://dollarchande.live/privacy/): چه چیزی ذخیره می‌شود
 - [شرایط](https://dollarchande.live/terms/): نرخ توصیه مالی نیست
+- [سلب مسئولیت](https://dollarchande.live/disclaimer/): صرافی نیست، نرخ رسمی نیست، منبع تابلو است و مجوز آن تابلو نیست
+
+## MCP
+
+- [MCP](https://api.dollarchande.live/mcp): Streamable HTTP, POST only. Same bot key as the API, same 60/minute ceiling. Tools: list_symbols, get_quote, get_latest, get_ticks, get_ohlc, get_exchanges. No session is stored.
 
 ## Skills
 

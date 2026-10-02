@@ -7,6 +7,7 @@ import { BOT_MENU_KV, BOT_MENU_VER, publishBotMenu } from "./telegram/commands";
 import { getAllLatest } from "./db/prices";
 import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
+import { handleMcp } from "./api/mcp";
 import { handlePublicApi } from "./api/public";
 
 /** So the bot notices when it is added to a group. Does not drop queued updates. */
@@ -37,6 +38,9 @@ export default {
     // Public chart PNGs for rich-message <img> embeds
     const chartRes = await handleChartRequest(request, env);
     if (chartRes) return chartRes;
+
+    const mcpRes = await handleMcp(request, env);
+    if (mcpRes) return mcpRes;
 
     const apiRes = await handlePublicApi(request, env, ctx);
     if (apiRes) return apiRes;

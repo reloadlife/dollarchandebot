@@ -131,6 +131,20 @@ There is no account, email, or password. The API key is stored as a SHA-256 hash
 
 Published numbers are the free market in toman. They can be late or empty for a symbol. They are not a buy or sell recommendation. A price on a shelf, invoice, or page belongs to the shop. The plugin only multiplies base × rate × factor.
 
+## MCP
+
+POST https://api.dollarchande.live/mcp
+
+Streamable HTTP, protocol 2025-03-26, stateless. Send the same bot key. A missing key is 401. The ceiling is shared with the REST API. Browser Origin is accepted only from https://dollarchande.live or localhost. Other origins get 403. This is not a way to skip the key.
+
+Tools: list_symbols, get_quote, get_latest, get_ticks, get_ohlc, get_exchanges. Arguments and results match the REST fields. Tool arguments are not stored.
+
+## Legal
+
+- https://dollarchande.live/disclaimer/ — not an exchange, not an official rate, not advice. source is bonbast or tetherland. Those sites do not run DollarChande and this service does not claim their permission.
+- https://dollarchande.live/terms/
+- https://dollarchande.live/privacy/
+
 ## Files for agents
 
 - https://dollarchande.live/llms.txt
@@ -141,3 +155,4 @@ Published numbers are the free market in toman. They can be late or empty for a 
 - https://dollarchande.live/.well-known/agent-skills/index.json
 - https://dollarchande.live/developers.md
 - https://dollarchande.live/docs.md
+- https://dollarchande.live/disclaimer/
