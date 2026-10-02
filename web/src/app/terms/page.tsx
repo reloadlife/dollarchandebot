@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/terms/" },
-  openGraph: { title: "شرایط استفاده · دلارچنده", description: "نرخ‌ها بازار آزاد به تومان‌اند و توصیه مالی نیستند. افزونه‌ها رایگان‌اند و کلید ربات می‌خواهند.", url: "/terms/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+export const metadata: Metadata = pageMeta({
   title: "شرایط استفاده · دلارچنده",
   description: "نرخ‌ها بازار آزاد به تومان‌اند و توصیه مالی نیستند. افزونه‌ها رایگان‌اند و کلید ربات می‌خواهند.",
-};
+  path: "/terms/",
+});
 
 const points = [
   ["نرخ", "عدد منتشرشده نرخ بازار آزاد به تومان است، نه نرخ بانک و نه توصیه خرید یا فروش. ممکن است دیر برسد یا برای یک نماد خالی باشد."],

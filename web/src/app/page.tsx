@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CopyBlock } from "@/components/copy-block";
 import { PluginPicker } from "@/components/plugin-picker";
@@ -9,7 +10,14 @@ import { Totem } from "@/components/totem";
 import { GlowFrame, PageWash } from "@/components/page-wash";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
+import { HOME_DESCRIPTION, HOME_TITLE, pageMeta } from "@/lib/seo";
 import { fa } from "@/lib/utils";
+
+export const metadata: Metadata = pageMeta({
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
+  path: "/",
+});
 
 const quiet =
   "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-transform duration-150 ease-out hover:bg-muted active:scale-[0.98]";

@@ -5,13 +5,14 @@ import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
+import { jsonLd, pageMeta, webApiGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/developers/" },
-  openGraph: { title: "API · دلارچنده", description: "مسیرهای عمومی نرخ تومان. هر کلاینت کلید ربات را می‌فرستد. بدون کلید پاسخ ۴۰۱ است.", url: "/developers/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+export const metadata: Metadata = pageMeta({
   title: "API · دلارچنده",
   description: "مسیرهای عمومی نرخ تومان. هر کلاینت کلید ربات را می‌فرستد. بدون کلید پاسخ ۴۰۱ است.",
-};
+  path: "/developers/",
+  markdown: "/developers.md",
+});
 
 const routes = [
   ["GET /api/v1/latest", "آخرین قیمت همه نمادها."],
@@ -36,6 +37,7 @@ export default function DevelopersPage() {
   const curl = `curl -H "Authorization: Bearer KEY" \\\n  ${API_BASE}/api/v1/symbols/USD`;
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(webApiGraph) }} />
       <section className="totem-scene relative overflow-hidden">
         <PageWash />
         <GirihBackground className="opacity-30" />

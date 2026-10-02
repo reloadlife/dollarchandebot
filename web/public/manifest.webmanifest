@@ -1,0 +1,20 @@
+{
+  "name": "دلارچنده — نرخ دلار، طلا و ارز بازار آزاد",
+  "short_name": "دلارچنده",
+  "description": "نرخ لحظه‌ای دلار، یورو، تتر، طلا و سکه بازار آزاد به تومان.",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#1a1e2a",
+  "theme_color": "#1a1e2a",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

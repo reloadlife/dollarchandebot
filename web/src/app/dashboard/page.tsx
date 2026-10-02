@@ -5,13 +5,13 @@ import { ShopBoard } from "@/components/shop-board";
 import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/dashboard/" },
-  openGraph: { title: "داشبورد · دلارچنده", description: "تابلوی زنده نرخ بازار آزاد برای فروشگاه. بدون حساب. قیمت‌ها تومان‌اند.", url: "/dashboard/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+export const metadata: Metadata = pageMeta({
   title: "داشبورد · دلارچنده",
   description: "تابلوی زنده نرخ بازار آزاد برای فروشگاه. بدون حساب. قیمت‌ها تومان‌اند.",
-};
+  path: "/dashboard/",
+});
 
 const quiet =
   "inline-flex h-11 items-center justify-center whitespace-nowrap rounded-[16px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-transform duration-150 ease-out hover:bg-muted active:scale-[0.98]";

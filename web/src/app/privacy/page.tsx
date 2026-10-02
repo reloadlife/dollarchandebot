@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
+import { pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/privacy/" },
-  openGraph: { title: "حریم خصوصی · دلارچنده", description: "خواندن نرخ حساب نمی‌خواهد. هشدار شناسه گفتگوی تلگرام را نگه می‌دارد. کلید API فقط به‌صورت درهم ذخیره می‌شود.", url: "/privacy/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+export const metadata: Metadata = pageMeta({
   title: "حریم خصوصی · دلارچنده",
   description: "خواندن نرخ حساب نمی‌خواهد. هشدار شناسه گفتگوی تلگرام را نگه می‌دارد. کلید API فقط به‌صورت درهم ذخیره می‌شود.",
-};
+  path: "/privacy/",
+});
 
 const facts = [
   ["حسابی نیست", "خواندن نرخ در سایت و در ربات حساب، ایمیل یا رمز نمی‌خواهد."],

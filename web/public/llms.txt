@@ -1,0 +1,32 @@
+# دلارچنده
+
+> نرخ بازار آزاد ایران به تومان، برای تابلو، فروشگاه و API. DollarChande publishes free-market FX, gold, coin, and USDT prices in toman. Not a bank rate and not financial advice.
+
+The site is https://dollarchande.live. The API is https://api.dollarchande.live. Every client sends a key from the Telegram bot @DollarChandeBot, command /key, as `Authorization: Bearer` or `X-Api-Key`. Without a key the API returns 401. A key allows about 60 requests per minute; the extra response is 429. Prices are toman and stay cached about one minute. `GET /chart/{ID}.png` does not need a key.
+
+## Pages
+
+- [خانه](https://dollarchande.live/): نرخ دلار داخل قیمت فروشگاه، افزونه‌ها، و یک نمونه درخواست
+- [تابلو](https://dollarchande.live/board/): نرخ زنده ارز، طلا و سکه به تومان
+- [داشبورد](https://dollarchande.live/dashboard/): همان تابلو برای فروشگاه، بدون حساب
+- [راهنما](https://dollarchande.live/docs.md): نصب وردپرس، ووکامرس، WHMCS و دستور هشدار. صفحه: https://dollarchande.live/docs/
+- [API](https://dollarchande.live/developers.md): مسیرها، کلید و شکل پاسخ. صفحه: https://dollarchande.live/developers/
+- [حریم خصوصی](https://dollarchande.live/privacy/): چه چیزی ذخیره می‌شود
+- [شرایط](https://dollarchande.live/terms/): نرخ توصیه مالی نیست
+
+## Skills
+
+- [rates](https://dollarchande.live/skills/dollarchande-rates/SKILL.md): خواندن نرخ تومان از API
+- [plugins](https://dollarchande.live/skills/dollarchande-plugins/SKILL.md): نصب افزونه رایگان فروشگاه
+- [alerts](https://dollarchande.live/skills/dollarchande-alerts/SKILL.md): ساختن هشدار قیمت در تلگرام
+
+## Optional
+
+- [مرجع کامل](https://dollarchande.live/llms-full.txt): API، نمادها، افزونه و هشدار در یک فایل
+- [فهرست مهارت‌ها](https://dollarchande.live/skills.md): همان سه مهارت، با توضیح کوتاه
+- [کاتالوگ مهارت](https://dollarchande.live/.well-known/agent-skills/index.json): نام و آدرس SKILL.md
+- [ربات](https://t.me/DollarChandeBot): گرفتن کلید با /key
+- [کانال](https://t.me/AlanDollarChande): فهرست قیمت، بی‌صدا
+- [وردپرس](https://dollarchande.live/downloads/dollarchande-wordpress.zip): افزونه شورت‌کد
+- [ووکامرس](https://dollarchande.live/downloads/dollarchande-woocommerce.zip): قیمت قفسه از پایه و نرخ
+- [WHMCS](https://dollarchande.live/downloads/dollarchande-whmcs.zip): نرخ یک ارز

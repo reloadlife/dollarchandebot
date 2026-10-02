@@ -1,0 +1,20 @@
+{
+  "spec": "https://agentskills.io/specification",
+  "skills": [
+    {
+      "name": "dollarchande-rates",
+      "description": "Read Iranian free-market FX, gold, coin, and USDT prices in toman from the DollarChande API.",
+      "url": "https://dollarchande.live/skills/dollarchande-rates/SKILL.md"
+    },
+    {
+      "name": "dollarchande-plugins",
+      "description": "Install the free DollarChande WordPress, WooCommerce, or WHMCS plugin.",
+      "url": "https://dollarchande.live/skills/dollarchande-plugins/SKILL.md"
+    },
+    {
+      "name": "dollarchande-alerts",
+      "description": "Create, list, and delete DollarChande Telegram price alerts.",
+      "url": "https://dollarchande.live/skills/dollarchande-alerts/SKILL.md"
+    }
+  ]
+}

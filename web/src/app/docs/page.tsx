@@ -6,14 +6,17 @@ import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { BOT_URL } from "@/lib/rates";
+import { docsGraph, jsonLd, pageMeta } from "@/lib/seo";
 import { fa } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/docs/" },
-  openGraph: { title: "راهنما · دلارچنده", description: "نصب افزونه وردپرس، ووکامرس و WHMCS، و هشدار تلگرام. هر سه افزونه کلید ربات می‌خواهند.", url: "/docs/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+const docsDescription = "نصب افزونه وردپرس، ووکامرس و WHMCS، و هشدار تلگرام. هر سه افزونه کلید ربات می‌خواهند.";
+
+export const metadata: Metadata = pageMeta({
   title: "راهنما · دلارچنده",
-  description: "نصب افزونه وردپرس، ووکامرس و WHMCS، و هشدار تلگرام. هر سه افزونه کلید ربات می‌خواهند.",
-};
+  description: docsDescription,
+  path: "/docs/",
+  markdown: "/docs.md",
+});
 
 const toc = [
   ["#key", "کلید"],
@@ -73,6 +76,7 @@ function Steps({ items }: { items: readonly string[] }) {
 export default function DocsPage() {
   return (
     <main>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(docsGraph(docsDescription)) }} />
       <section className="totem-scene relative overflow-hidden">
         <PageWash />
         <GirihBackground className="opacity-30" />

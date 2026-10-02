@@ -1,0 +1,38 @@
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex
+
+/llms-full.txt
+  Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex
+
+/skills.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/developers.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/docs.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/skills/dollarchande-rates/SKILL.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/skills/dollarchande-plugins/SKILL.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/skills/dollarchande-alerts/SKILL.md
+  Content-Type: text/markdown; charset=utf-8
+  X-Robots-Tag: noindex
+
+/.well-known/agent-skills/index.json
+  Content-Type: application/json; charset=utf-8
+  X-Robots-Tag: noindex
+
+/manifest.webmanifest
+  Content-Type: application/manifest+json; charset=utf-8

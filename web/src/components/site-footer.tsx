@@ -8,6 +8,7 @@ const links = [
   { href: "/developers/", label: "API" },
   { href: "/privacy/", label: "حریم خصوصی" },
   { href: "/terms/", label: "شرایط" },
+  { href: "/llms.txt", label: "llms.txt" },
   { href: CHANNEL_URL, label: "کانال", external: true },
   { href: BOT_URL, label: "ربات", external: true },
 ];

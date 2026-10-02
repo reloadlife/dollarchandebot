@@ -1,0 +1,143 @@
+# دلارچنده
+
+> نرخ بازار آزاد ایران به تومان. DollarChande. Not a bank rate and not financial advice.
+
+Site: https://dollarchande.live
+API: https://api.dollarchande.live
+Bot: https://t.me/DollarChandeBot (@DollarChandeBot)
+Channel: https://t.me/AlanDollarChande
+Skill index: https://dollarchande.live/skills.md
+
+The channel posts a silent price list on each update. It does not send a notification for that post.
+
+## Key
+
+Send /key in a private chat with the bot. The key is shown once and looks like `dc_` plus hex. The database keeps only its SHA-256 hash, with the Telegram chat id.
+
+Every API client, including the three plugins, sends that key:
+
+- `Authorization: Bearer KEY`
+- or `X-Api-Key: KEY`
+
+Missing or unknown key: 401, body `{"error":"missing_api_key"}` or `{"error":"invalid_api_key"}`.
+Over the limit: 429, body `{"error":"rate_limited"}`, header `retry-after: 60`.
+Limit: about 60 requests per minute per key.
+Only GET and OPTIONS are accepted. Anything else is 405 `method_not_allowed`.
+CORS allows any origin, methods GET and OPTIONS, headers content-type, accept, authorization, and x-api-key.
+A successful JSON response is cached about 60 seconds. Do not poll faster than that.
+`GET /chart/{ID}.png` does not use this key check.
+
+Reading the board on the website does not ask for an account. That is not a way to call the API.
+
+## Routes
+
+Base: https://api.dollarchande.live
+
+- `GET /api/v1` — name, unit, and the endpoint list
+- `GET /api/v1/latest` — every latest quote
+- `GET /api/v1/symbols` — symbol list, no prices
+- `GET /api/v1/symbols/{ID}` — one quote. `{ID}` is case-insensitive. Aliases work (`nim` is HALF, `tether` is USDT).
+- `GET /api/v1/symbols/{ID}/ticks` — last 24 hours, `{ ts, price }`
+- `GET /api/v1/symbols/{ID}/ohlc?days=30` — daily candles. `days` is clamped to 1..90. Default 30.
+- `GET /api/v1/exchanges` — USDT venues. `buy` is toman to buy 1 USDT. `sell` is toman received for 1 USDT.
+- `GET /chart/{ID}.png` — 24h PNG. Add `?r=7d` for 7 days. No key. Unknown symbol is plain text 404.
+
+Unknown path: 404 `not_found`. Unknown symbol: 404 `unknown_symbol`.
+
+### Quote fields
+
+`id`, `name`, `label_fa`, `kind` (`fx`, `gold`, `coin`, `crypto`), `emoji`, `aliases`, `price`, `prev_price`, `buy`, `sell`, `source`, `updated_at` (unix seconds), `unit`.
+
+`unit` is the string `toman` on every quote. `price` is the latest toman price. `prev_price` is the previous price, for the change. An empty symbol can return `price: null`.
+
+`GET /api/v1/latest` returns `{ unit, count, quotes }`.
+`GET /api/v1/symbols` returns `{ count, symbols }` with the same meta and no prices.
+
+### Symbols
+
+FX: USD, EUR, GBP, CHF, CAD, AUD, TRY, AED, CNY, JPY, SEK, NOK, DKK, RUB, THB, SGD, HKD, AZN, AMD, SAR, INR, MYR, AFN, KWD, IQD, BHD, OMR, QAR.
+
+JPY is 10 Japanese yen. AMD is 10 Armenian dram. IQD is 100 Iraqi dinar.
+
+Gold: MITHQAL (mesghal), GOLD18 (18k gram; aliases gold, geram), OUNCE. The OUNCE name is "Gold Ounce (USD)". The JSON field `unit` is still `toman`. Do not treat OUNCE as an 18k toman gram.
+
+Coins: EMAMI, AZADI, HALF (½ Azadi; alias nim), QUARTER (alias rob), GERAMI.
+
+Crypto: USDT (Tetherland).
+
+### Example
+
+```
+curl -H "Authorization: Bearer KEY" \
+  https://api.dollarchande.live/api/v1/symbols/USD
+```
+
+Replace KEY. Do not invent a price when the request fails.
+
+## Plugins
+
+All three are free. Each needs the bot key. A plugin without a key gets 401 and does nothing.
+
+WordPress — https://dollarchande.live/downloads/dollarchande-wordpress.zip
+
+1. Upload the zip, or copy the `dollarchande` folder into `wp-content/plugins`. Activate it.
+2. Settings → دلارچنده: paste the key from /key.
+3. Shortcode: `[dollarchande symbol="USD"]`.
+4. In a theme, `dollarchande_rate('USD')` returns the rate, or null if it did not arrive.
+5. If the rate is missing or outside a sane range, the shortcode says «نرخ الان نرسید.» and does not replace the previous number.
+
+WooCommerce — https://dollarchande.live/downloads/dollarchande-woocommerce.zip
+
+WooCommerce must already be installed. Price = base × rate × factor, rounded to the step. Factor 1 for toman, 10 for rial. A step of 1000 rounds to the nearest thousand.
+
+1. Upload, activate, then WooCommerce → دلارچنده: save the key and the symbol.
+2. On the product, enable «به‌روزرسانی با دلارچنده» and enter the base in dollars.
+3. Sale price is left alone. A variable product is enabled per variation.
+4. A cron run happens about once an hour. «همگام‌سازی الان» runs it immediately.
+5. If the rate is not sane, the stored price stays as it is.
+
+WHMCS — https://dollarchande.live/downloads/dollarchande-whmcs.zip
+
+1. Put the folder in `modules/addons/dollarchande`.
+2. Configuration → Addon Modules: activate دلارچنده.
+3. Set the bot key, symbol, currency id, and factor. The id is `tblcurrencies.id` of the toman or rial currency.
+4. Do not pick the default currency. Its rate must stay 1. The WHMCS cron must be on.
+5. Activation widens `rate` to DECIMAL(18,8). Deactivating does not delete the table or the rates.
+6. The cron writes about once an hour. «Update now» inside the addon writes immediately.
+7. If the rate is outside the sane range, the `rate` column is not changed.
+
+Shop catalog and WHMCS currencies stay on the merchant's server. The plugin only fetches the rate and writes the price there.
+
+## Alerts
+
+In the bot. At most ten alerts per chat.
+
+- `/alert USD above 180000` — once. The numbers are syntax examples, not a live price. The alert is deleted after it fires.
+- `/alert USD below 170000` — once, at or under the line.
+- `/alert USD above 180000 every` — repeats. After it fires it stays quiet until the price crosses back, then it arms again.
+- `/alert USD below 170000 every` — the same, under the line.
+- `/alert USD move 2` — once, on a 2% move. The first sample only sets a baseline and does not notify.
+- `/alert USD move 2 every` — each time the price moves 2% from the last alert.
+- `/alerts` — list this chat's alerts.
+- `/unalert 3` — delete alert number 3.
+
+An alert fires only when a price is available and the condition holds. Nothing promises that every move is caught.
+
+`/alert` stores the Telegram chat id, symbol, direction, threshold, and once-or-repeat mode.
+
+## Privacy and terms
+
+There is no account, email, or password. The API key is stored as a SHA-256 hash. The website runs on Cloudflare Pages and the API on Cloudflare Workers.
+
+Published numbers are the free market in toman. They can be late or empty for a symbol. They are not a buy or sell recommendation. A price on a shelf, invoice, or page belongs to the shop. The plugin only multiplies base × rate × factor.
+
+## Files for agents
+
+- https://dollarchande.live/llms.txt
+- https://dollarchande.live/skills.md
+- https://dollarchande.live/skills/dollarchande-rates/SKILL.md
+- https://dollarchande.live/skills/dollarchande-plugins/SKILL.md
+- https://dollarchande.live/skills/dollarchande-alerts/SKILL.md
+- https://dollarchande.live/.well-known/agent-skills/index.json
+- https://dollarchande.live/developers.md
+- https://dollarchande.live/docs.md
