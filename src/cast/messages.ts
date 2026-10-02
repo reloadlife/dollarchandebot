@@ -13,7 +13,7 @@ import {
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
-import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage } from "../telegram/api";
+import { sendMessage, sendPhoto, sendRichMessage } from "../telegram/api";
 import { em } from "../telegram/emoji";
 
 function unit(env: Env): string {
@@ -235,8 +235,6 @@ function htmlToPlain(html: string): string {
 
 /** Channel posts should not ding subscribers. */
 const CHANNEL_SILENT = { disable_notification: true } as const;
-/** Id of the latest price-list post. Each interval sends a new silent one. */
-const KV_LIST_MSG = "cast:list_msg_id";
 
 /** Opens the bot on a symbol. Works from a channel, where callbacks do not. */
 export function channelActionRow(bot: string): string {
@@ -251,19 +249,12 @@ export async function castPriceList(env: Env): Promise<void> {
   }
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
-  let sentId: number;
   try {
-    sentId = (await sendRichMessage(env, chatId, text, CHANNEL_SILENT)).message_id;
+    await sendRichMessage(env, chatId, text, CHANNEL_SILENT);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("castPriceList rich failed, plain fallback", { chatId, err: msg });
-    sentId = (await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT)).message_id;
-  }
-  await env.CACHE.put(KV_LIST_MSG, String(sentId));
-  try {
-    await pinChatMessage(env, chatId, sentId);
-  } catch (e) {
-    console.error("pin price list failed", e);
+    await sendMessage(env, chatId, htmlToPlain(text), CHANNEL_SILENT);
   }
 }
 

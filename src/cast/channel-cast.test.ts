@@ -31,7 +31,7 @@ function memoryKv(): KVNamespace & { dump: Map<string, string> } {
   } as unknown as KVNamespace & { dump: Map<string, string> };
 }
 
-test("channel cast sends a silent post on every interval and pins it silently", async () => {
+test("channel cast sends a silent post on every interval and does not pin", async () => {
   const calls: Array<{ method: string; body: Record<string, unknown> }> = [];
   let nextId = 77;
   const previous = globalThis.fetch;
@@ -70,10 +70,8 @@ test("channel cast sends a silent post on every interval and pins it silently", 
   const edits = calls.filter((call) => call.method === "editMessageText");
   expect(sends).toHaveLength(2);
   expect(sends.every((call) => call.body.disable_notification === true)).toBe(true);
-  expect(pins).toHaveLength(2);
-  expect(pins.every((call) => call.body.disable_notification === true)).toBe(true);
-  expect(pins.map((call) => call.body.message_id)).toEqual([77, 78]);
+  expect(pins).toHaveLength(0);
   expect(edits).toHaveLength(0);
   expect(calls.filter((call) => call.method === "sendMessage")).toHaveLength(0);
-  expect(cache.dump.get("cast:list_msg_id")).toBe("78");
+  expect(cache.dump.has("cast:list_msg_id")).toBe(false);
 });
