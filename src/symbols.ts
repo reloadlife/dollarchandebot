@@ -52,6 +52,10 @@ export const SYMBOLS: SymbolDef[] = [
   { id: "MITHQAL", sourceKey: "mithqal", source: "bonbast", name: "Gold Mithqal", emoji: "🥇", kind: "gold", aliases: ["mesghal", "مثقال"], channelList: true },
   { id: "GOLD18", sourceKey: "gol18", source: "bonbast", name: "Gold Gram (18k)", emoji: "🥇", kind: "gold", aliases: ["gold", "geram", "گرم", "gol18"], channelList: true },
   { id: "OUNCE", sourceKey: "ounce", source: "bonbast", name: "Gold Ounce (USD)", emoji: "🟡", kind: "gold", aliases: ["ons"], channelList: false },
+  { id: "GOLD24", sourceKey: "gol24", source: "bonbast", name: "Gold Gram (24k)", emoji: "🥇", kind: "gold", aliases: ["geram24", "طلا۲۴"], channelList: false },
+  { id: "SILVER", sourceKey: "silver", source: "bonbast", name: "Silver Gram (999)", emoji: "🥈", kind: "gold", aliases: ["نقره", "noghre", "silver999"], channelList: false },
+  { id: "XAG", sourceKey: "xag", source: "bonbast", name: "Silver Ounce (USD)", emoji: "⚪", kind: "gold", aliases: ["انس نقره", "انسنقره"], channelList: false },
+  { id: "XPT", sourceKey: "platinum", source: "bonbast", name: "Platinum Ounce (USD)", emoji: "⬜", kind: "gold", aliases: ["پلاتین"], channelList: false },
 
   // —— Coins ——
   { id: "EMAMI", sourceKey: "emami1", source: "bonbast", name: "Emami Coin", emoji: "🪙", kind: "coin", aliases: ["emami", "امامی"], channelList: true },

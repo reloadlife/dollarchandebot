@@ -119,17 +119,17 @@ export async function runScrape(env: Env): Promise<number> {
   if (tgjuR.status === "rejected") console.error("scrape tgju failed", tgjuR.reason);
   if (alanR.status === "rejected") console.error("scrape alanchand failed", alanR.reason);
 
-  // Bonbast wins when it answered. TGJU, then Alanchand, fill symbols it missed.
+  // TGJU is the published FX, gold, and coin board. Bonbast, then Alanchand, fill what it missed.
   const board: BoardQuote[] = fillMissing(
     fillMissing(
-      bonbast.map((q) => ({ ...q, source: "bonbast" as const })),
       tgju.quotes,
+      bonbast.map((q) => ({ ...q, source: "bonbast" as const })),
     ),
     alan.quotes,
   );
-  const fromTgju = board.filter((q) => q.source === "tgju").length;
+  const fromBonbast = board.filter((q) => q.source === "bonbast").length;
   const fromAlan = board.filter((q) => q.source === "alanchand").length;
-  if (fromTgju || fromAlan) console.log("board filled", { tgju: fromTgju, alanchand: fromAlan });
+  if (fromBonbast || fromAlan) console.log("board gap-fill", { bonbast: fromBonbast, alanchand: fromAlan });
 
   // USDT source order: tetherland → tgju → venue median → alanchand.
   // A single board quote outranks a thin median. The median stays exchange-only.

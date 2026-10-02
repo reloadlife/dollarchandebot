@@ -3,7 +3,7 @@ import { fillMissing } from "./board";
 import { parseTgju } from "./tgju";
 import { parseAlanchand } from "./alanchand";
 import { listBoards } from "../jobs";
-import { scrapeAbanTether, scrapeBitbarg, scrapeRaastin } from "./exchanges";
+import { scrapeAbanTether, scrapeBitbarg, scrapeBitpin, scrapeRaastin } from "./exchanges";
 
 const NOW = Date.parse("2026-10-02T12:00:00Z");
 
@@ -38,6 +38,42 @@ test("tgju maps rial, ounce, and the 10-yen / 10-dram / 100-dinar units", () => 
   expect(price("kwd")).toBeUndefined();
   expect(parsed.usdt).toBe(261956);
   expect(parsed.quotes.every((q) => q.source === "tgju")).toBe(true);
+});
+
+test("tgju scales silver, 24k gold, and platinum", () => {
+  const parsed = parseTgju(
+    {
+      current: {
+        price_dollar_rl: { p: "2,584,650", ts: "2026-10-01 00:00:00" },
+        silver_999: { p: "5,228,200", ts: "2026-10-01 00:00:00" },
+        silver: { p: "60.37", ts: "2026-10-02 00:00:00" },
+        geram24: { p: "342,588,000", ts: "2026-10-01 00:00:00" },
+        platinum: { p: "1,706.80", ts: "2026-10-02 00:00:00" },
+      },
+    },
+    NOW,
+  );
+  const price = (key: string) => parsed.quotes.find((q) => q.sourceKey === key)?.price;
+  expect(price("silver")).toBe(522820);
+  expect(price("xag")).toBe(60);
+  expect(price("gol24")).toBe(34258800);
+  expect(price("platinum")).toBe(1707);
+});
+
+test("tgju drops a rial-sized silver gram and a 10× ounce", () => {
+  const parsed = parseTgju(
+    {
+      current: {
+        price_dollar_rl: { p: "2,584,650", ts: "2026-10-01 00:00:00" },
+        silver_999: { p: "52,282,000", ts: "2026-10-01 00:00:00" },
+        geram24: { p: "3,425,880,000", ts: "2026-10-01 00:00:00" },
+        silver: { p: "6.00", ts: "2026-10-02 00:00:00" },
+        platinum: { p: "17,068", ts: "2026-10-02 00:00:00" },
+      },
+    },
+    NOW,
+  );
+  expect(parsed.quotes.map((q) => q.sourceKey)).toEqual(["usd"]);
 });
 
 test("alanchand reads toman cells and scales 100-yen and 100-dram", () => {
@@ -149,6 +185,18 @@ test("abantether reads the USDTIRT market", async () => {
     const q = await scrapeAbanTether();
     expect(q.buy).toBe(263242);
     expect(q.sell).toBe(261793);
+  } finally {
+    restore();
+  }
+});
+
+test("bitpin reads the last USDT_IRT trade", async () => {
+  const restore = stubJson([{ price: "263150", side: "sell" }]);
+  try {
+    const q = await scrapeBitpin();
+    expect(q.exchange).toBe("bitpin");
+    expect(q.mid).toBe(263150);
+    expect(q.buy).toBe(263150);
   } finally {
     restore();
   }

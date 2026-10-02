@@ -86,7 +86,7 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
     },
   });
   if (!res.ok) {
-    // Unread bodies pile up against the concurrent-request limit (19 venues).
+    // Unread bodies pile up against the concurrent-request limit.
     await res.body?.cancel();
     throw new Error(`${url} → ${res.status}`);
   }
@@ -217,46 +217,15 @@ export async function scrapeWallex(): Promise<ExchangeQuote> {
   );
 }
 
-/** Bitpin */
+/** Bitpin — last USDT_IRT trade. The price is already toman. The markets list does not answer. */
 export async function scrapeBitpin(): Promise<ExchangeQuote> {
-  const body = (await getJson("https://api.bitpin.ir/api/v1/mkt/markets/")) as
-    | Array<{
-        code?: string;
-        currency1_code?: string;
-        currency2_code?: string;
-        price?: string | number;
-        price_info?: { price?: string };
-        top_order_price?: { buy?: string; sell?: string };
-      }>
-    | { results?: unknown[] };
-
-  const results = Array.isArray(body) ? body : (body as { results?: unknown[] }).results;
-  const list = (Array.isArray(results) ? results : []) as Array<{
-    code?: string;
-    currency1_code?: string;
-    currency2_code?: string;
-    price?: string | number;
-    price_info?: { price?: string };
-    top_order_price?: { buy?: string; sell?: string };
-  }>;
-  const m =
-    list.find((x) => {
-      const code = (x.code ?? "").toUpperCase();
-      const c2 = (x.currency2_code ?? "").toUpperCase();
-      return (
-        code.includes("USDT") &&
-        (c2 === "IRT" || c2 === "TMN" || c2 === "RLS" || code.includes("IRT") || code.includes("TMN"))
-      );
-    }) ?? list.find((x) => (x.code ?? "").toUpperCase().replace(/[-_]/g, "") === "USDTIRT");
-
-  if (!m) throw new Error("bitpin: no USDT_IRT");
-  // top_order: sell = ask (user buy), buy = bid (user sell)
-  return quote(
-    "bitpin",
-    "Bitpin",
-    m.top_order_price?.sell ?? m.price_info?.price ?? m.price,
-    m.top_order_price?.buy ?? m.price_info?.price ?? m.price,
-  );
+  const body = (await getJson("https://api.bitpin.ir/api/v1/mth/matches/USDT_IRT/")) as
+    | Array<{ price?: string | number }>
+    | { results?: Array<{ price?: string | number }> };
+  const list = Array.isArray(body) ? body : (body.results ?? []);
+  const price = list[0]?.price;
+  if (price == null) throw new Error("bitpin: no USDT_IRT");
+  return quote("bitpin", "Bitpin", price, price, price);
 }
 
 /** Ramzinex — often quotes Rial */
@@ -352,62 +321,16 @@ export async function scrapeOmpfinex(): Promise<ExchangeQuote> {
 }
 
 /**
- * Bit24 — the OTC quote lives on a separate host from their main API, which is
- * why every api.bit24.cash path 404s. Prices are already Toman.
+ * Bit24 OTC. `?base=USDT` lists other coins priced in tether, not the tether
+ * book. `?symbol=USDT` is the toman quote. The pro API wants a key.
  */
 export async function scrapeBit24(): Promise<ExchangeQuote> {
-  const body = (await getJson("https://otc-api.bit24.cash/api/v1/coins/markets?base=USDT")) as {
+  const body = (await getJson("https://otc-api.bit24.cash/api/v1/coins/markets?symbol=USDT")) as {
     data?: { results?: Array<{ symbol?: string; each_price?: string | number }> };
   };
   const row = (body.data?.results ?? []).find((r) => (r.symbol ?? "").toUpperCase() === "USDT");
   if (!row?.each_price) throw new Error("bit24: no USDT quote");
   return quote("bit24", "Bit24", row.each_price, row.each_price, row.each_price);
-}
-
-export async function scrapeOkEx(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.ok-ex.io/oapi/v1/market/overview",
-    "https://www.ok-ex.io/api/v1/market/ticker?symbol=USDT-IRT",
-    "https://api.okex.ir/api/v1/market/ticker?symbol=USDTIRT",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>> | Record<string, unknown>; result?: unknown };
-      const data = (body as { data?: unknown }).data ?? body;
-      const list = Array.isArray(data) ? data : [];
-      if (list.length) {
-        const m = list.find((x) => {
-          const s = String(x.symbol ?? x.market ?? x.pair ?? "").toUpperCase();
-          return s.includes("USDT") && (s.includes("IRT") || s.includes("TMN") || s.includes("IRR"));
-        });
-        if (m) {
-          return quote(
-            "okex",
-            "OK-Ex",
-            m.sell ?? m.ask ?? m.highest_buy ?? m.price,
-            m.buy ?? m.bid ?? m.lowest_sell ?? m.price,
-            m.last ?? m.price,
-          );
-        }
-      }
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const d = data as Record<string, unknown>;
-        return quote(
-          "okex",
-          "OK-Ex",
-          d.ask ?? d.sell ?? d.price,
-          d.bid ?? d.buy ?? d.price,
-          d.last ?? d.price,
-        );
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("okex: failed");
 }
 
 /**
@@ -423,46 +346,6 @@ export async function scrapePooleno(): Promise<ExchangeQuote> {
   return quote("pooleno", "Pooleno", m[1], m[1], m[1]);
 }
 
-export async function scrapeSarmayex(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.sarmayex.com/api/v2/currency",
-    "https://api.sarmayex.com/api/v1/currency",
-    "https://market.sarmayex.com/api/v1/market/USDT_IRT",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>> | Record<string, unknown> };
-      const data = (body as { data?: unknown }).data ?? body;
-      const list = Array.isArray(data) ? data : [];
-      if (list.length) {
-        const u = list.find((x) => {
-          const s = String(x.symbol ?? x.slug ?? x.name ?? x.pair ?? "").toUpperCase();
-          return s === "USDT" || s.includes("USDT");
-        });
-        if (u) {
-          return quote(
-            "sarmayex",
-            "Sarmayex",
-            u.sell_price ?? u.sell ?? u.ask ?? u.price,
-            u.buy_price ?? u.buy ?? u.bid ?? u.price,
-            u.price ?? u.last,
-          );
-        }
-      }
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const d = data as Record<string, unknown>;
-        return quote("sarmayex", "Sarmayex", d.ask ?? d.sell ?? d.price, d.bid ?? d.buy ?? d.price);
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("sarmayex: failed");
-}
-
 /**
  * Bitbarg — `price` is the coin's USD peg (1 for USDT). The toman series is `chart`.
  */
@@ -474,68 +357,6 @@ export async function scrapeBitbarg(): Promise<ExchangeQuote> {
   const last = row?.chart?.at(-1);
   if (last == null) throw new Error("bitbarg: no USDT chart");
   return quote("bitbarg", "Bitbarg", last, last, last);
-}
-
-/**
- * SwapWallet / کیف‌پول من style OTC — try common public endpoints.
- * (Brand names vary: swapwallet, kifpool, wallex-wallet apps)
- */
-export async function scrapeSwapWallet(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.swapwallet.ir/v1/price/usdt",
-    "https://api.swapwallet.app/v1/price/usdt",
-    "https://swapwallet.ir/api/v1/price",
-    "https://api.kifpool.me/api/v1/price",
-    "https://api.mykifpool.ir/api/v1/otc/usdt",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as Record<string, unknown>;
-      const d = (body.data as Record<string, unknown> | undefined) ?? body;
-      const usdt = (d.USDT ?? d.usdt ?? d) as Record<string, unknown>;
-      return quote(
-        "swapwallet",
-        "SwapWallet",
-        usdt.buy ?? usdt.buyPrice ?? usdt.ask ?? usdt.price ?? d.buy,
-        usdt.sell ?? usdt.sellPrice ?? usdt.bid ?? usdt.price ?? d.sell,
-        usdt.price ?? d.price,
-      );
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("swapwallet: failed");
-}
-
-export async function scrapeHamtapay(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.hamtapay.com/v1/rates",
-    "https://api.hamtapay.net/v1/price/usdt",
-    "https://hamtapay.com/api/v1/rates",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>> | Record<string, unknown> };
-      const data = (body as { data?: unknown }).data ?? body;
-      const list = Array.isArray(data) ? data : [];
-      if (list.length) {
-        const u = list.find((x) => String(x.symbol ?? x.coin ?? "").toUpperCase().includes("USDT"));
-        if (u) return quote("hamtapay", "Hamtapay", u.buy ?? u.price, u.sell ?? u.price);
-      }
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const d = data as Record<string, unknown>;
-        const usdt = (d.USDT ?? d.usdt ?? d) as Record<string, unknown>;
-        return quote("hamtapay", "Hamtapay", usdt.buy ?? usdt.price, usdt.sell ?? usdt.price);
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("hamtapay: failed");
 }
 
 /** Wallex-style OTC “Tetherland v2” mirror sometimes used by bots */
@@ -588,8 +409,8 @@ export async function scrapeArzplus(): Promise<ExchangeQuote> {
 type Scraper = () => Promise<ExchangeQuote>;
 
 /**
- * Every scraper we know. Fail-soft; order does not matter (sorted by mid later).
- * OTC-only shops without public APIs are intentionally absent.
+ * Every scraper with one working public URL. Fail-soft; order does not matter.
+ * SwapWallet wants an API key. Poulyar and Iranicard publish no keyless tether price.
  */
 const SCRAPERS: Array<{ id: string; run: Scraper }> = [
   { id: "tetherland", run: scrapeTetherlandExchange },
@@ -604,14 +425,10 @@ const SCRAPERS: Array<{ id: string; run: Scraper }> = [
   { id: "abantether", run: scrapeAbanTether },
   { id: "ompfinex", run: scrapeOmpfinex },
   { id: "bit24", run: scrapeBit24 },
-  { id: "okex", run: scrapeOkEx },
   { id: "pooleno", run: scrapePooleno },
-  { id: "sarmayex", run: scrapeSarmayex },
   { id: "ubitex", run: scrapeUbitex },
   { id: "bitbarg", run: scrapeBitbarg },
-  { id: "swapwallet", run: scrapeSwapWallet },
   { id: "arzplus", run: scrapeArzplus },
-  { id: "hamtapay", run: scrapeHamtapay },
 ];
 
 export function listScraperIds(): string[] {

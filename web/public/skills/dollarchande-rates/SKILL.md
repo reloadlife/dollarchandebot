@@ -43,7 +43,9 @@ FX: USD EUR GBP CHF CAD AUD TRY AED CNY JPY SEK NOK DKK RUB THB SGD HKD AZN AMD 
 
 JPY means 10 yen. AMD means 10 dram. IQD means 100 dinar.
 
-Gold: MITHQAL, GOLD18 (18k gram), OUNCE. OUNCE is named "Gold Ounce (USD)". Do not read it as an 18k toman gram. `unit` is still the string `toman`.
+Gold: MITHQAL, GOLD18 (18k gram), GOLD24 (24k gram), OUNCE. OUNCE is named "Gold Ounce (USD)". Do not read it as an 18k toman gram. `unit` is still the string `toman`.
+
+Silver: SILVER (999 gram, toman), XAG (ounce, USD). Platinum: XPT (ounce, USD). XAG and XPT are dollars, same as OUNCE, while `unit` stays `toman`.
 
 Coins: EMAMI, AZADI, HALF (alias nim), QUARTER (alias rob), GERAMI.
 

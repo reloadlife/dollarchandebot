@@ -1,6 +1,6 @@
 /**
  * TGJU free-market board. One keyless JSON, reachable from Cloudflare egress.
- * `current[key].p` is Rial except `ons`, which is the gold ounce in USD.
+ * `current[key].p` is Rial except `ons`, `silver`, and `platinum`, which are USD per ounce.
  *
  * Do not read `usdt-irr` (frozen since 2020). Live tether is `crypto-tether-irr`.
  * Do not read `ice_*` or the per-shop `*_sell` rows; those are other boards and
@@ -27,7 +27,7 @@ type Scale = "rial" | "usd" | "jpy100" | "amd1" | "iqd1";
 /**
  * How the raw `p` becomes this project's unit.
  * - rial: ÷10 → toman
- * - usd: ounce, already dollars. Do not ÷10.
+ * - usd: gold, silver, and platinum ounces, already dollars. Do not ÷10.
  * - jpy100: raw is 100 yen in rial. ÷100 → toman for 10 yen.
  * - amd1: raw rial for 1 dram equals toman for 10 dram, so the digits stay.
  * - iqd1: raw is 1 dinar in rial. ×10 → toman for 100 dinar.
@@ -62,8 +62,12 @@ const ROWS: Array<{ key: string; sourceKey: string; scale: Scale }> = [
   { key: "price_omr", sourceKey: "omr", scale: "rial" },
   { key: "price_qar", sourceKey: "qar", scale: "rial" },
   { key: "geram18", sourceKey: "gol18", scale: "rial" },
+  { key: "geram24", sourceKey: "gol24", scale: "rial" },
   { key: "mesghal", sourceKey: "mithqal", scale: "rial" },
   { key: "ons", sourceKey: "ounce", scale: "usd" },
+  { key: "silver_999", sourceKey: "silver", scale: "rial" },
+  { key: "silver", sourceKey: "xag", scale: "usd" },
+  { key: "platinum", sourceKey: "platinum", scale: "usd" },
   { key: "sekee", sourceKey: "emami1", scale: "rial" },
   { key: "sekeb", sourceKey: "azadi1", scale: "rial" },
   { key: "nim", sourceKey: "azadi1_2", scale: "rial" },

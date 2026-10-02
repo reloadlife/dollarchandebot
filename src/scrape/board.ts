@@ -14,10 +14,7 @@ export function single(sourceKey: string, price: number, source: BoardSource): B
   return { sourceKey, price, buy: null, sell: price, source };
 }
 
-/**
- * Keep the first board that produced a symbol.
- * Bonbast stays the published figure when it answered; tgju and alanchand only fill gaps.
- */
+/** Keep the first board that produced a symbol. Callers put the preferred board first. */
 export function fillMissing(primary: BoardQuote[], extra: BoardQuote[]): BoardQuote[] {
   const have = new Set(primary.map((q) => q.sourceKey.toLowerCase()));
   const out = primary.slice();
@@ -30,22 +27,25 @@ export function fillMissing(primary: BoardQuote[], extra: BoardQuote[]): BoardQu
   return out;
 }
 
-/** Absolute toman bands (ounce is USD). A forgotten ÷10 on the dollar lands above the USD cap. */
+/** Absolute bands. Ounce, silver ounce, and platinum are USD. A forgotten ÷10 on the dollar lands above the USD cap. */
+const ABSOLUTE: Record<string, [number, number]> = {
+  ounce: [500, 20_000],
+  xag: [8, 250],
+  platinum: [400, 8_000],
+  usd: [20_000, 2_000_000],
+  gol18: [500_000, 500_000_000],
+  gol24: [1_000_000, 150_000_000],
+  silver: [50_000, 2_000_000],
+  mithqal: [1_000_000, 2_000_000_000],
+  emami1: [1_000_000, 5_000_000_000],
+  azadi1: [1_000_000, 5_000_000_000],
+  azadi1_2: [100_000, 3_000_000_000],
+  azadi1_4: [100_000, 3_000_000_000],
+  azadi1g: [100_000, 3_000_000_000],
+};
+
 function absoluteOk(sourceKey: string, n: number): boolean {
-  const [min, max] =
-    sourceKey === "ounce"
-      ? [500, 20_000]
-      : sourceKey === "usd"
-        ? [20_000, 2_000_000]
-        : sourceKey === "gol18"
-          ? [500_000, 500_000_000]
-          : sourceKey === "mithqal"
-            ? [1_000_000, 2_000_000_000]
-            : sourceKey === "emami1" || sourceKey === "azadi1"
-              ? [1_000_000, 5_000_000_000]
-              : sourceKey === "azadi1_2" || sourceKey === "azadi1_4" || sourceKey === "azadi1g"
-                ? [100_000, 3_000_000_000]
-                : [100, 20_000_000];
+  const [min, max] = ABSOLUTE[sourceKey] ?? [100, 20_000_000];
   return n >= min && n <= max;
 }
 
@@ -83,6 +83,8 @@ const PER_USD: Record<string, number> = {
   amd: 1 / 36,
   iqd: 1 / 15,
   gol18: 100,
+  gol24: 133,
+  silver: 2,
   mithqal: 430,
   emami1: 1000,
   azadi1: 970,
