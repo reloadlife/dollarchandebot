@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Freshness } from "@/components/freshness";
-import { PriceChart, type PricePoint } from "@/components/price-chart";
+import { PriceChart, type CandlePoint } from "@/components/price-chart";
+import { bucketForTicks, candlesFromTicks } from "@/lib/candles";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Price } from "@/components/ui/price";
@@ -157,16 +158,39 @@ export function Board() {
 
   const current = quotes?.find((quote) => quote.id === selected);
   const currentLabel = current ? quoteLabel(current) : selected;
-  const points = useMemo<PricePoint[] | null>(() => {
+  const points = useMemo<CandlePoint[] | null>(() => {
     if (range === "24h") {
       if (!ticks) return null;
-      return [...ticks]
-        .sort((a, b) => a.ts - b.ts)
-        .map((tick) => ({ t: fa(tehranClock(tick.ts)), price: tick.price }));
+      return candlesFromTicks(ticks).map((bar) => ({
+        t: fa(tehranClock(bar.ts)),
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+      }));
     }
     if (!days) return null;
-    return days.slice(-7).map((day) => ({ t: fa(day.day.slice(5)), price: day.close }));
+    return days.slice(-7).flatMap((day) => {
+      if (![day.open, day.high, day.low, day.close].every((value) => Number.isFinite(value))) return [];
+      return [
+        {
+          t: fa(day.day.slice(5)),
+          open: day.open,
+          high: Math.max(day.high, day.open, day.close),
+          low: Math.min(day.low, day.open, day.close),
+          close: day.close,
+        },
+      ];
+    });
   }, [range, ticks, days]);
+  const candleHint =
+    points && points.length > 0
+      ? range === "7d"
+        ? "هر کندل یک روز"
+        : bucketForTicks(ticks ?? []) >= 60 * 60
+          ? "هر کندل یک ساعت"
+          : `هر کندل ${fa(bucketForTicks(ticks ?? []) / 60)} دقیقه`
+      : null;
 
   function pick(id: string) {
     selectView(id, "24h");
@@ -182,7 +206,10 @@ export function Board() {
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="min-w-0 lg:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{currentLabel}</p>
+          <p className="text-sm text-muted-foreground">
+            {currentLabel}
+            {candleHint ? <span className="text-xs"> · {candleHint}</span> : null}
+          </p>
           <div className="flex gap-2">
             {(["24h", "7d"] as const).map((item) => (
               <button
@@ -203,7 +230,7 @@ export function Board() {
         {chartError ? <p role="status" className="mt-3 text-sm text-destructive">نمودار تازه نرسید. {points ? "نمودار قبلی مانده است." : ""} <button type="button" className="font-semibold text-brand" onClick={() => setChartAttempt((n) => n + 1)}>تلاش دوباره</button></p> : null}
         {!(chartError && !points) ? <PriceChart key={`${selected}-${range}`}
           points={points}
-          label={`نمودار ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
+          label={`کندل ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
         /> : null}
       </section>
       <aside ref={detailRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-2 lg:self-start">

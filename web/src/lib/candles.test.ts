@@ -3,7 +3,7 @@ import { bucketForTicks, candlesFromDays, candlesFromTicks, formatAxisPrice } fr
 
 test("a single tick is one doji", () => {
   const bars = candlesFromTicks([{ ts: 1_700_000_000, price: 100 }]);
-  expect(bars).toEqual([{ open: 100, high: 100, low: 100, close: 100 }]);
+  expect(bars).toEqual([{ ts: 1_699_999_200, open: 100, high: 100, low: 100, close: 100 }]);
 });
 
 test("ticks inside two hours use 15 minute candles", () => {
@@ -15,8 +15,8 @@ test("ticks inside two hours use 15 minute candles", () => {
   expect(bucketForTicks(ticks)).toBe(15 * 60);
   const bars = candlesFromTicks(ticks);
   expect(bars).toHaveLength(4);
-  expect(bars[0]).toEqual({ open: 100, high: 101, low: 100, close: 101 });
-  expect(bars[3]).toEqual({ open: 104, high: 104, low: 104, close: 104 });
+  expect(bars[0]).toEqual({ ts: start, open: 100, high: 101, low: 100, close: 101 });
+  expect(bars[3]).toEqual({ ts: start + 60 * 60, open: 104, high: 104, low: 104, close: 104 });
 });
 
 test("a full day of ticks becomes hourly candles", () => {

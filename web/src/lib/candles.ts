@@ -7,6 +7,11 @@ export interface Candle {
   close: number;
 }
 
+export interface TickCandle extends Candle {
+  /** Bucket start, unix seconds. */
+  ts: number;
+}
+
 export interface TickPoint {
   ts: number;
   price: number;
@@ -33,7 +38,7 @@ function candle(price: number): Candle {
 }
 
 /** One candle per bucket. A bucket with a single tick is a doji. Empty buckets are skipped. */
-export function candlesFromTicks(ticks: TickPoint[], bucketSec = bucketForTicks(ticks)): Candle[] {
+export function candlesFromTicks(ticks: TickPoint[], bucketSec = bucketForTicks(ticks)): TickCandle[] {
   const sorted = ticks
     .filter((tick) => Number.isFinite(tick.ts) && Number.isFinite(tick.price))
     .sort((a, b) => a.ts - b.ts);
@@ -50,7 +55,7 @@ export function candlesFromTicks(ticks: TickPoint[], bucketSec = bucketForTicks(
     bar.low = Math.min(bar.low, tick.price);
     bar.close = tick.price;
   }
-  return [...buckets.keys()].sort((a, b) => a - b).map((key) => buckets.get(key)!);
+  return [...buckets.keys()].sort((a, b) => a - b).map((key) => ({ ts: key, ...buckets.get(key)! }));
 }
 
 /** Short scale label. Millions use «م» so a narrow board can show the number. */
