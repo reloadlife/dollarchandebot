@@ -13,7 +13,7 @@ import {
 import { calcCoinBubble, COIN_SPECS } from "../lib/coin-bubble";
 import { renderLineChartPng } from "../lib/chart";
 import { compactTable, type TableCell } from "../lib/rich-table";
-import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage, editRichMessage } from "../telegram/api";
+import { pinChatMessage, sendMessage, sendPhoto, sendRichMessage } from "../telegram/api";
 import { em } from "../telegram/emoji";
 
 function unit(env: Env): string {
@@ -235,7 +235,7 @@ function htmlToPlain(html: string): string {
 
 /** Channel posts should not ding subscribers. */
 const CHANNEL_SILENT = { disable_notification: true } as const;
-/** Message id of the single pinned price list. Edits stay silent. */
+/** Id of the latest price-list post. Each interval sends a new silent one. */
 const KV_LIST_MSG = "cast:list_msg_id";
 
 /** Opens the bot on a symbol. Works from a channel, where callbacks do not. */
@@ -251,16 +251,6 @@ export async function castPriceList(env: Env): Promise<void> {
   }
   const text = await buildPriceListHtml(env);
   const chatId = env.TELEGRAM_CHANNEL_ID;
-  const existing = await env.CACHE.get(KV_LIST_MSG);
-  const messageId = Number(existing);
-  if (existing && Number.isFinite(messageId) && messageId > 0) {
-    try {
-      await editRichMessage(env, chatId, messageId, text);
-      return;
-    } catch (e) {
-      console.error("edit pinned list failed, sending a new one", e);
-    }
-  }
   let sentId: number;
   try {
     sentId = (await sendRichMessage(env, chatId, text, CHANNEL_SILENT)).message_id;
