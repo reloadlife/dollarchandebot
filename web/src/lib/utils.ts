@@ -1,17 +1,29 @@
-export type ClassValue = string | number | bigint | null | undefined | false | ClassValue[];
+export type ClassValue =
+  | string
+  | number
+  | bigint
+  | null
+  | undefined
+  | false
+  | ClassValue[]
+  | Record<string, boolean | null | undefined>;
 
-/** Minimal class joiner (swap for clsx + tailwind-merge when the library grows). */
+/** Minimal class joiner. Accepts strings, arrays, and `{ class: on }` maps. */
 export function cn(...inputs: ClassValue[]): string {
   const out: string[] = [];
-  for (const i of inputs) {
-    if (!i) continue;
-    if (Array.isArray(i)) {
-      const nested = cn(...i);
-      if (nested) out.push(nested);
-    } else {
-      out.push(String(i));
+  const push = (value: ClassValue) => {
+    if (!value) return;
+    if (Array.isArray(value)) {
+      for (const nested of value) push(nested);
+      return;
     }
-  }
+    if (typeof value === "object") {
+      for (const [key, on] of Object.entries(value)) if (on) out.push(key);
+      return;
+    }
+    out.push(String(value));
+  };
+  for (const value of inputs) push(value);
   return out.join(" ");
 }
 

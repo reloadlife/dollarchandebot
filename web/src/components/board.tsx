@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CandleChart } from "@/components/candle-chart";
+import { PriceChart, type PricePoint } from "@/components/price-chart";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Price } from "@/components/ui/price";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { candlesFromDays, candlesFromTicks, type Candle } from "@/lib/candles";
 import {
   changePct,
   fetchExchanges,
@@ -132,21 +131,15 @@ export function Board() {
 
   const current = quotes?.find((quote) => quote.id === selected);
   const currentLabel = current ? quoteLabel(current) : selected;
-  const candles = useMemo<Candle[] | null>(() => {
-    if (range === "24h") return ticks ? candlesFromTicks(ticks) : null;
-    return days ? candlesFromDays(days, 7) : null;
-  }, [range, ticks, days]);
-  const axis = useMemo(() => {
-    if (range === "24h" && ticks && ticks.length > 0) {
-      const first = ticks.reduce((min, tick) => Math.min(min, tick.ts), ticks[0].ts);
-      const last = ticks.reduce((max, tick) => Math.max(max, tick.ts), ticks[0].ts);
-      return { start: fa(tehranClock(first)), end: fa(tehranClock(last)) };
+  const points = useMemo<PricePoint[] | null>(() => {
+    if (range === "24h") {
+      if (!ticks) return null;
+      return [...ticks]
+        .sort((a, b) => a.ts - b.ts)
+        .map((tick) => ({ t: fa(tehranClock(tick.ts)), price: tick.price }));
     }
-    if (range === "7d" && days && days.length > 0) {
-      const slice = days.slice(-7);
-      return { start: fa(slice[0].day.slice(5)), end: fa(slice[slice.length - 1].day.slice(5)) };
-    }
-    return { start: "", end: "" };
+    if (!days) return null;
+    return days.slice(-7).map((day) => ({ t: fa(day.day.slice(5)), price: day.close }));
   }, [range, ticks, days]);
 
   function pick(id: string) {
@@ -162,7 +155,32 @@ export function Board() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <aside ref={detailRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:self-start">
+      <section className="min-w-0 lg:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{currentLabel}</p>
+          <div className="flex gap-2">
+            {(["24h", "7d"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={range === item}
+                onClick={() => setRange(item)}
+                className={cn(
+                  "inline-flex h-11 items-center rounded-[16px] px-4 text-sm",
+                  range === item ? "bg-brand font-semibold text-brand-foreground" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {item === "24h" ? "۲۴ ساعت" : "۷ روز"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <PriceChart
+          points={points}
+          label={`نمودار ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
+        />
+      </section>
+      <aside ref={detailRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-2 lg:self-start">
         <p className="text-sm text-muted-foreground">{currentLabel}</p>
         <div aria-live="polite">
           {current?.price != null ? (
@@ -178,28 +196,6 @@ export function Board() {
         {current?.updated_at ? (
           <p className="mt-1 text-sm text-muted-foreground">ساعت {fa(tehranClock(current.updated_at))} به وقت تهران</p>
         ) : null}
-        <div className="mt-4 flex gap-2">
-          {(["24h", "7d"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-pressed={range === item}
-              onClick={() => setRange(item)}
-              className={cn(
-                "inline-flex h-11 items-center rounded-[16px] px-4 text-sm",
-                range === item ? "bg-brand font-semibold text-brand-foreground" : "bg-muted text-muted-foreground",
-              )}
-            >
-              {item === "24h" ? "۲۴ ساعت" : "۷ روز"}
-            </button>
-          ))}
-        </div>
-        <CandleChart
-          candles={candles}
-          startLabel={axis.start}
-          endLabel={axis.end}
-          label={`نمودار شمعی ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
-        />
         {days && days.length > 0 ? (
           <table className="mt-4 hidden w-full text-sm sm:table">
             <tbody>
@@ -216,7 +212,7 @@ export function Board() {
         ) : null}
       </aside>
 
-      <div className="lg:col-start-1 lg:row-start-1">
+      <div className="lg:col-start-1 lg:row-start-2">
         {error && !quotes ? (
           <EmptyState
             title="نرخ‌ها نرسید"
