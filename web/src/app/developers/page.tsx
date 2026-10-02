@@ -8,9 +8,9 @@ import { API_BASE, BOT_URL } from "@/lib/rates";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/developers/" },
-  openGraph: { title: "API · دلارچنده", description: "مسیرهای عمومی نرخ تومان. سایت با Origin خودش کلید نمی‌فرستد. افزونه و بقیه کلاینت‌ها بدون کلید ۴۰۱ می‌گیرند.", url: "/developers/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+  openGraph: { title: "API · دلارچنده", description: "مسیرهای عمومی نرخ تومان. هر کلاینت کلید ربات را می‌فرستد. بدون کلید پاسخ ۴۰۱ است.", url: "/developers/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "API · دلارچنده",
-  description: "مسیرهای عمومی نرخ تومان. سایت با Origin خودش کلید نمی‌فرستد. افزونه و بقیه کلاینت‌ها بدون کلید ۴۰۱ می‌گیرند.",
+  description: "مسیرهای عمومی نرخ تومان. هر کلاینت کلید ربات را می‌فرستد. بدون کلید پاسخ ۴۰۱ است.",
 };
 
 const routes = [
@@ -54,20 +54,9 @@ export default function DevelopersPage() {
       <div className="mx-auto max-w-3xl px-4 py-12">
         <section>
           <h2 className="text-2xl font-semibold">کلید</h2>
-          <div className="mt-4 grid gap-3">
-            <article className="rounded-[16px] border border-border bg-card px-5 py-5">
-              <h3 className="text-lg font-semibold">سایت</h3>
-              <p className="mt-2 leading-8 text-foreground/75">
-                اگر هدر Origin برابر https://dollarchande.live یا https://dollarchande-web.pages.dev باشد، مرورگر همان سایت می‌تواند کلید نفرستد. هر مبدأ دیگری این استثنا را ندارد. تابلو از همین استثنا استفاده می‌کند.
-              </p>
-            </article>
-            <article className="rounded-[16px] border border-border bg-card px-5 py-5">
-              <h3 className="text-lg font-semibold">بقیه کلاینت‌ها</h3>
-              <p className="mt-2 leading-8 text-foreground/75">
-                هر کلاینت دیگر، از جمله هر سه افزونه، باید کلید ربات را در Authorization: Bearer یا X-Api-Key بفرستد. بدون کلید پاسخ 401 است. افزونه بدون کلید کار نمی‌کند.
-              </p>
-            </article>
-          </div>
+          <p className="mt-4 leading-8 text-foreground/75">
+            هر کلاینت، از جمله هر سه افزونه، باید کلید ربات را در Authorization: Bearer یا X-Api-Key بفرستد. بدون کلید پاسخ 401 است. افزونه بدون کلید کار نمی‌کند.
+          </p>
           <ol className="mt-5 space-y-2 text-sm leading-7 text-foreground/80">
             <li>ربات را باز کن و /key را بفرست.</li>
             <li>کلید را یک بار می‌بینی. همان را نگه دار. در پایگاه فقط درهم آن می‌ماند.</li>

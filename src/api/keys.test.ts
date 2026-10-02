@@ -11,9 +11,11 @@ test("readApiKey accepts bearer and x-api-key", () => {
   expect(readApiKey(new Request("https://api.dollarchande.live/api/v1"))).toBeNull();
 });
 
-test("site origin is only the public site", () => {
+test("site origin is only dollarchande.live", () => {
   expect(isSiteOrigin("https://dollarchande.live")).toBe(true);
-  expect(isSiteOrigin("https://dollarchande-web.pages.dev")).toBe(true);
+  expect(isSiteOrigin("https://dollarchande-web.pages.dev")).toBe(false);
+  expect(isSiteOrigin("https://preview.dollarchande-web.pages.dev")).toBe(false);
+  expect(isSiteOrigin("https://www.dollarchande.live")).toBe(false);
   expect(isSiteOrigin("https://evil.example")).toBe(false);
   expect(isSiteOrigin(null)).toBe(false);
 });

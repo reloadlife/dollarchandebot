@@ -1,9 +1,6 @@
 import type { Env } from "../env";
 
-const SITE_ORIGINS = new Set([
-  "https://dollarchande.live",
-  "https://dollarchande-web.pages.dev",
-]);
+const SITE_ORIGINS = new Set(["https://dollarchande.live"]);
 
 export function generateApiKey(): string {
   const bytes = new Uint8Array(24);
@@ -26,7 +23,7 @@ export function readApiKey(request: Request): string | null {
   return match?.[1] || null;
 }
 
-/** The public site may read rates without a key. Other clients may not. */
+/** dollarchande.live may read rates without a key. Every other caller may not. */
 export function isSiteOrigin(origin: string | null): boolean {
   return origin != null && SITE_ORIGINS.has(origin);
 }
