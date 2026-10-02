@@ -2,20 +2,20 @@
 name: DollarChande
 description: A night price board for free-market toman rates.
 colors:
-  led: "oklch(0.84 0.16 72)"
-  led-ghost: "oklch(0.84 0.16 72 / 22%)"
-  brand: "oklch(0.78 0.17 55)"
-  brand-ink: "oklch(0.18 0.04 45)"
-  ground: "oklch(0.145 0.025 45)"
-  housing: "oklch(0.185 0.028 42)"
-  well: "oklch(0.12 0.025 45)"
-  ink: "oklch(0.96 0.02 85)"
-  dim: "oklch(0.8 0.05 75)"
-  line: "oklch(0.78 0.12 55 / 22%)"
-  day-ground: "oklch(0.97 0.012 85)"
-  day-ink: "oklch(0.22 0.04 45)"
-  day-led: "oklch(0.46 0.16 42)"
-  day-brand: "oklch(0.52 0.16 42)"
+  led: "oklch(0.88 0.16 90)"
+  led-ghost: "oklch(0.88 0.16 90 / 22%)"
+  brand: "oklch(0.86 0.14 92)"
+  brand-ink: "oklch(0.22 0.04 75)"
+  ground: "oklch(0.17 0.02 262)"
+  housing: "oklch(0.22 0.022 262)"
+  well: "oklch(0.13 0.03 48)"
+  ink: "oklch(0.96 0.008 95)"
+  dim: "oklch(0.78 0.02 95)"
+  line: "oklch(0.8 0.02 95 / 16%)"
+  day-ground: "oklch(0.985 0.004 95)"
+  day-ink: "oklch(0.24 0.02 262)"
+  day-led: "oklch(0.72 0.13 88)"
+  day-brand: "oklch(0.48 0.12 82)"
 typography:
   display:
     fontFamily: "Vazirmatn, IRANSansX, ui-sans-serif, sans-serif"
@@ -94,24 +94,22 @@ Daylight is the same board in the sun: the wall bleaches, the digits become dark
 
 ## Colors
 
-The night scene is the brand. Light mode is the same materials under daylight, swapped on `prefers-color-scheme`.
+The page is cool ink, day and night. Gold is the action. The digits stay amber inside the dark well. Light mode swaps the page on `prefers-color-scheme` and leaves the well dark.
 
 ### Primary
 
-- **Board amber** (`oklch(0.84 0.16 72)`): lit segments at night.
-- **Action amber** (`oklch(0.78 0.17 55)`): primary buttons, links, focus, selection. Ink on the button is `oklch(0.18 0.04 45)`.
+- **Board amber** (`oklch(0.88 0.16 90)`): lit segments. The well forces this even in daylight.
+- **Action gold** (`oklch(0.86 0.14 92)` at night, `oklch(0.48 0.12 82)` in daylight): buttons, links, focus.
 
 ### Neutral
 
-- **Night ground** (`oklch(0.145 0.025 45)`): page.
-- **Housing** (`oklch(0.185 0.028 42)`): raised board frame and section panels.
-- **Well** (`oklch(0.12 0.025 45)`): the recessed face the digits sit in.
-- **Warm ink** (`oklch(0.96 0.02 85)`): text on the night ground.
-- **Dim amber-gray** (`oklch(0.8 0.05 75)`): labels inside the well.
-- **Hairline** (`oklch(0.78 0.12 55 / 22%)`): borders.
-- **Day ground** (`oklch(0.97 0.012 85)`), **day ink** (`oklch(0.22 0.04 45)`), **day digits** (`oklch(0.46 0.16 42)`), **day action** (`oklch(0.52 0.16 42)`).
+- **Night ground** (`oklch(0.17 0.02 262)`): page.
+- **Housing** (`oklch(0.22 0.022 262)`): raised panels.
+- **Well** (`oklch(0.13 0.03 48)`): the recessed face the digits sit in. It stays dark in daylight.
+- **Ink** (`oklch(0.96 0.008 95)`): text on the night ground.
+- **Day ground** (`oklch(0.985 0.004 95)`), **day ink** (`oklch(0.24 0.02 262)`).
 
-**The One Amber Rule.** Segments, focus, selection, and the primary action share one hue. Status red and green exist for errors and for the rate board's up/down marks. They do not become a second brand color.
+Status red and green exist for errors and for the rate board's up and down marks. They do not become a second brand color.
 
 ## Typography
 

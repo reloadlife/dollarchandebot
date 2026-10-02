@@ -17,9 +17,9 @@ export function PageWash() {
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 isolate overflow-hidden">
       <AuroraBackground />
       <BackgroundBeams className="opacity-90 [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_72%)]" />
-      <Spotlight className="-top-[20%] start-[-8%] h-[70%] w-[78%]" fill="#F6D48A" />
+      <Spotlight className="-top-[20%] start-[-8%] h-[70%] w-[78%]" fill="#F8E7B0" />
       <div className="absolute inset-3 overflow-hidden rounded-[16px] sm:inset-4">
-        <BorderBeam size={180} duration={13} colorFrom="#F6D48A" colorTo="#E39B3A" borderWidth={1.5} />
+        <BorderBeam size={180} duration={13} colorFrom="#F8E7B0" colorTo="#E6C56A" borderWidth={1.5} />
       </div>
     </div>
   );
@@ -29,7 +29,7 @@ export function PageWash() {
 export function GlowFrame({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <div className={cn("relative overflow-hidden rounded-[16px]", className)}>
-      <BorderBeam size={110} duration={11} colorFrom="#F6D48A" colorTo="#E39B3A" borderWidth={1.5} />
+      <BorderBeam size={110} duration={11} colorFrom="#F8E7B0" colorTo="#E6C56A" borderWidth={1.5} />
       {children}
     </div>
   );

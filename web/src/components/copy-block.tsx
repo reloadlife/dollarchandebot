@@ -19,8 +19,8 @@ export function CopyBlock({ text, label, caption }: { text: string; label: strin
 
   return (
     <div className="overflow-hidden rounded-[16px] border border-border">
-      <div className="flex h-[60px] items-center justify-between gap-3 bg-[oklch(0.1_0.025_48)] px-4">
-        <p className="min-w-0 truncate font-mono text-xs text-[oklch(0.84_0.05_85)]" dir="ltr">
+      <div className="code-face flex h-[60px] items-center justify-between gap-3 px-4">
+        <p className="min-w-0 truncate font-mono text-xs" dir="ltr">
           {caption ?? "request"}
         </p>
         <button

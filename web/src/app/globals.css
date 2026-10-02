@@ -54,63 +54,64 @@
 }
 /* --- vibefarsi:theme-graphite-end --- */
 
-/* Price-board tokens. Later :root wins over the graphite block above. */
+/* Price-board tokens. Later :root wins over the graphite block above.
+   The page is cool ink. Gold is the action and the lamp. The digits stay amber. */
 :root {
   color-scheme: dark;
-  --background: oklch(0.145 0.025 45);
-  --foreground: oklch(0.96 0.02 85);
-  --card: oklch(0.185 0.028 42);
-  --card-foreground: oklch(0.96 0.02 85);
-  --popover: oklch(0.2 0.028 42);
-  --popover-foreground: oklch(0.96 0.02 85);
-  --primary: oklch(0.78 0.17 55);
-  --primary-foreground: oklch(0.16 0.04 45);
-  --secondary: oklch(0.24 0.03 42);
-  --secondary-foreground: oklch(0.96 0.02 85);
-  --muted: oklch(0.22 0.03 42);
-  --muted-foreground: oklch(0.78 0.04 70);
-  --accent: oklch(0.26 0.04 50);
-  --accent-foreground: oklch(0.96 0.02 85);
-  --destructive: oklch(0.68 0.16 28);
-  --success: oklch(0.74 0.12 155);
-  --warning: oklch(0.78 0.15 70);
-  --border: oklch(0.78 0.12 55 / 22%);
-  --input: oklch(0.78 0.12 55 / 26%);
-  --ring: oklch(0.78 0.17 55);
-  --brand: oklch(0.78 0.17 55);
-  --brand-foreground: oklch(0.18 0.04 45);
-  --led: oklch(0.84 0.16 72);
-  --led-ghost: oklch(0.84 0.16 72 / 22%);
+  --background: oklch(0.17 0.02 262);
+  --foreground: oklch(0.96 0.008 95);
+  --card: oklch(0.22 0.022 262);
+  --card-foreground: oklch(0.96 0.008 95);
+  --popover: oklch(0.24 0.022 262);
+  --popover-foreground: oklch(0.96 0.008 95);
+  --primary: oklch(0.86 0.14 92);
+  --primary-foreground: oklch(0.22 0.04 75);
+  --secondary: oklch(0.27 0.02 262);
+  --secondary-foreground: oklch(0.96 0.008 95);
+  --muted: oklch(0.27 0.018 262);
+  --muted-foreground: oklch(0.78 0.02 95);
+  --accent: oklch(0.3 0.03 262);
+  --accent-foreground: oklch(0.96 0.008 95);
+  --destructive: oklch(0.7 0.17 25);
+  --success: oklch(0.76 0.12 160);
+  --warning: oklch(0.82 0.14 85);
+  --border: oklch(0.8 0.02 95 / 16%);
+  --input: oklch(0.8 0.02 95 / 22%);
+  --ring: oklch(0.86 0.14 92);
+  --brand: oklch(0.86 0.14 92);
+  --brand-foreground: oklch(0.22 0.04 75);
+  --led: oklch(0.88 0.16 90);
+  --led-ghost: oklch(0.88 0.16 90 / 22%);
   --radius: 16px;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --background: oklch(0.97 0.012 85);
-    --foreground: oklch(0.22 0.04 45);
-    --card: oklch(0.995 0.006 85);
-    --card-foreground: oklch(0.22 0.04 45);
-    --popover: oklch(0.99 0.008 85);
-    --popover-foreground: oklch(0.22 0.04 45);
-    --primary: oklch(0.52 0.16 42);
-    --primary-foreground: oklch(0.98 0.02 85);
-    --secondary: oklch(0.93 0.02 80);
-    --secondary-foreground: oklch(0.22 0.04 45);
-    --muted: oklch(0.93 0.02 80);
-    --muted-foreground: oklch(0.38 0.04 45);
-    --accent: oklch(0.93 0.03 70);
-    --accent-foreground: oklch(0.22 0.04 45);
-    --destructive: oklch(0.52 0.18 28);
+    --background: oklch(0.985 0.004 95);
+    --foreground: oklch(0.24 0.02 262);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.24 0.02 262);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.24 0.02 262);
+    --primary: oklch(0.48 0.12 82);
+    --primary-foreground: oklch(0.99 0.01 95);
+    --secondary: oklch(0.96 0.006 95);
+    --secondary-foreground: oklch(0.24 0.02 262);
+    --muted: oklch(0.95 0.006 95);
+    --muted-foreground: oklch(0.45 0.02 262);
+    --accent: oklch(0.95 0.02 92);
+    --accent-foreground: oklch(0.24 0.02 262);
+    --destructive: oklch(0.52 0.19 25);
     --success: oklch(0.46 0.12 155);
-    --warning: oklch(0.52 0.14 60);
-    --border: oklch(0.4 0.08 45 / 20%);
-    --input: oklch(0.4 0.08 45 / 24%);
-    --ring: oklch(0.52 0.16 42);
-    --brand: oklch(0.52 0.16 42);
-    --brand-foreground: oklch(0.98 0.02 85);
-    --led: oklch(0.46 0.16 42);
-    --led-ghost: oklch(0.46 0.16 42 / 28%);
+    --warning: oklch(0.55 0.13 75);
+    --border: oklch(0.89 0.008 95);
+    --input: oklch(0.89 0.008 95);
+    --ring: oklch(0.48 0.12 82);
+    --brand: oklch(0.48 0.12 82);
+    --brand-foreground: oklch(0.99 0.01 95);
+    --led: oklch(0.72 0.13 88);
+    --led-ghost: oklch(0.72 0.13 88 / 30%);
   }
 }
 
@@ -196,6 +197,11 @@
 
 .totem-dim {
   color: oklch(0.84 0.05 85);
+}
+
+.code-face {
+  background: oklch(0.16 0.022 262);
+  color: oklch(0.9 0.04 95);
 }
 
 .totem-rule {

@@ -24,7 +24,7 @@ export function AuroraBackground({
       style={
         {
           "--aurora":
-            "repeating-linear-gradient(100deg,#f6d27a_10%,#e39b3a_15%,#fff1cc_20%,#c47a2a_25%,#ffe7a3_30%)",
+            "repeating-linear-gradient(100deg,#f8e7b0_10%,#e6c56a_15%,#fff8df_20%,#c9a24a_25%,#f3dd9a_30%)",
         } as CSSProperties
       }
     >

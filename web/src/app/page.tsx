@@ -136,8 +136,8 @@ export default function HomePage() {
             </div>
             <div className="rise-child" style={riseDelay(120)}>
               <GlowFrame className="border border-border">
-                <div className="flex h-[60px] items-center bg-[oklch(0.1_0.025_48)] px-4">
-                  <p className="text-sm font-semibold text-[oklch(0.84_0.05_85)]">پاسخ</p>
+                <div className="code-face flex h-[60px] items-center px-4">
+                  <p className="text-sm font-semibold">پاسخ</p>
                 </div>
                 <dl className="bg-card px-4">
                   {fields.map(([name, note]) => (
