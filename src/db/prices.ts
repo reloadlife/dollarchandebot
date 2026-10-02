@@ -219,12 +219,18 @@ export async function getPrice24hAgo(
  * Who actually produced a USDT price. The tetherland API is only one of three
  * origins now, so the row has to say which one rather than assume.
  */
-export type TetherSource = "tetherland" | "tgju" | "venue_median";
+export type TetherSource = "tetherland" | "tgju" | "alanchand" | "venue_median";
 
 /** Map scraped source keys → symbol ids and persist. */
 export async function ingestScrapes(
   env: Env,
-  bonbast: Array<{ sourceKey: string; price: number; buy: number | null; sell: number | null }>,
+  bonbast: Array<{
+    sourceKey: string;
+    price: number;
+    buy: number | null;
+    sell: number | null;
+    source?: string;
+  }>,
   tether: Array<{ sourceKey: string; price: number; source?: TetherSource }>,
 ): Promise<number> {
   const bySourceKey = new Map(SYMBOLS.map((s) => [s.sourceKey.toLowerCase(), s]));
@@ -238,7 +244,7 @@ export async function ingestScrapes(
       price: q.price,
       buy: q.buy,
       sell: q.sell,
-      source: "bonbast",
+      source: q.source ?? "bonbast",
     });
   }
 

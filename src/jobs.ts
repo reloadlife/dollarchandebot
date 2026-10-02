@@ -1,9 +1,11 @@
 import type { Env, JobMessage } from "./env";
 import { scrapeBonbast } from "./scrape/bonbast";
 import { scrapeTetherland } from "./scrape/tetherland";
-import { scrapeAllUsdtExchanges } from "./scrape/exchanges";
+import { scrapeAllUsdtExchanges, type ExchangeQuote } from "./scrape/exchanges";
 import { probeCandidates } from "./scrape/probe";
-import { scrapeTgjuUsdt } from "./scrape/tgju";
+import { scrapeTgju } from "./scrape/tgju";
+import { scrapeAlanchand } from "./scrape/alanchand";
+import { fillMissing, type BoardQuote } from "./scrape/board";
 import { configureProxy, proxyConfigured } from "./lib/proxy";
 import { ingestScrapes, getLatest, type TetherSource } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
@@ -67,6 +69,23 @@ async function kvPut(env: Env, key: string, value: string): Promise<void> {
 /** Venues required before a derived USDT median is publishable. */
 const USDT_QUORUM = 3;
 
+/** Exchange rows plus the TGJU and Alanchand tether figures, cheapest mid first. */
+export function listBoards(
+  venues: ExchangeQuote[],
+  tgjuUsdt: number | null,
+  alan: { buy: number; sell: number; mid: number } | null,
+): ExchangeQuote[] {
+  const out = venues.slice();
+  if (tgjuUsdt != null && !out.some((q) => q.exchange === "tgju")) {
+    out.push({ exchange: "tgju", name: "TGJU", buy: tgjuUsdt, sell: tgjuUsdt, mid: tgjuUsdt });
+  }
+  if (alan && !out.some((q) => q.exchange === "alanchand")) {
+    out.push({ exchange: "alanchand", name: "Alanchand", buy: alan.buy, sell: alan.sell, mid: alan.mid });
+  }
+  out.sort((a, b) => (a.mid ?? 0) - (b.mid ?? 0));
+  return out;
+}
+
 /** Median of the exchange mids — USDT fallback when tetherland is down. */
 export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null {
   const mids = quotes.map((q) => q.mid).filter((m): m is number => m != null).sort((a, b) => a - b);
@@ -78,11 +97,12 @@ export function medianUsdt(quotes: Array<{ mid: number | null }>): number | null
 export async function runScrape(env: Env): Promise<number> {
   configureProxy(env);
   // One flaky source must not kill the whole scrape+cast pipeline.
-  const [bonbastR, tetherR, exchangesR, tgjuR] = await Promise.allSettled([
+  const [bonbastR, tetherR, exchangesR, tgjuR, alanR] = await Promise.allSettled([
     scrapeBonbast(),
     scrapeTetherland(["USDT"]),
     scrapeAllUsdtExchanges(),
-    scrapeTgjuUsdt(),
+    scrapeTgju(),
+    scrapeAlanchand(),
   ]);
 
   const bonbast = bonbastR.status === "fulfilled" ? bonbastR.value : [];
@@ -90,17 +110,32 @@ export async function runScrape(env: Env): Promise<number> {
     tetherR.status === "fulfilled" ? tetherR.value : [];
   const exchanges =
     exchangesR.status === "fulfilled" ? exchangesR.value : { quotes: [], errors: [] };
+  const tgju = tgjuR.status === "fulfilled" ? tgjuR.value : { quotes: [], usdt: null, usdtState: "missing" as const };
+  const alan = alanR.status === "fulfilled" ? alanR.value : { quotes: [], usdt: null };
 
   if (bonbastR.status === "rejected") console.error("scrape bonbast failed", bonbastR.reason);
   if (tetherR.status === "rejected") console.error("scrape tetherland failed", tetherR.reason);
   if (exchangesR.status === "rejected") console.error("scrape exchanges failed", exchangesR.reason);
   if (tgjuR.status === "rejected") console.error("scrape tgju failed", tgjuR.reason);
+  if (alanR.status === "rejected") console.error("scrape alanchand failed", alanR.reason);
 
-  // USDT source order: tetherland → tgju → venue median. tgju is a single
-  // aggregator quote but a real published one, so it outranks a thin median.
-  if (!tether.length && tgjuR.status === "fulfilled" && tgjuR.value != null) {
-    tether = [{ sourceKey: "USDT", price: tgjuR.value, source: "tgju" }];
-    console.log("usdt from tgju", tgjuR.value);
+  // Bonbast wins when it answered. TGJU, then Alanchand, fill symbols it missed.
+  const board: BoardQuote[] = fillMissing(
+    fillMissing(
+      bonbast.map((q) => ({ ...q, source: "bonbast" as const })),
+      tgju.quotes,
+    ),
+    alan.quotes,
+  );
+  const fromTgju = board.filter((q) => q.source === "tgju").length;
+  const fromAlan = board.filter((q) => q.source === "alanchand").length;
+  if (fromTgju || fromAlan) console.log("board filled", { tgju: fromTgju, alanchand: fromAlan });
+
+  // USDT source order: tetherland → tgju → venue median → alanchand.
+  // A single board quote outranks a thin median. The median stays exchange-only.
+  if (!tether.length && tgju.usdt != null) {
+    tether = [{ sourceKey: "USDT", price: tgju.usdt, source: "tgju" }];
+    console.log("usdt from tgju", tgju.usdt);
   }
 
   // Still nothing → derive from the venues, but only with a real quorum:
@@ -118,17 +153,24 @@ export async function runScrape(env: Env): Promise<number> {
     }
   }
 
-  if (!bonbast.length && !tether.length && !exchanges.quotes.length) {
+  if (!tether.length && alan.usdt != null) {
+    tether = [{ sourceKey: "USDT", price: alan.usdt.mid, source: "alanchand" }];
+    console.log("usdt from alanchand", alan.usdt.mid);
+  }
+
+  const listed = listBoards(exchanges.quotes, tgju.usdt, alan.usdt);
+
+  if (!board.length && !tether.length && !listed.length) {
     throw new Error("scrape: all sources failed");
   }
 
-  const n = await ingestScrapes(env, bonbast, tether);
-  if (exchanges.quotes.length) {
-    await saveExchangeQuotes(env.DB, exchanges.quotes);
+  const n = await ingestScrapes(env, board, tether);
+  if (listed.length) {
+    await saveExchangeQuotes(env.DB, listed);
   }
   console.log(
     proxyConfigured() ? "exchanges ok (proxy on):" : "exchanges ok:",
-    exchanges.quotes.map((q) => q.exchange).join(",") || "(none)",
+    listed.map((q) => q.exchange).join(",") || "(none)",
   );
   if (exchanges.errors.length) {
     // Full list, not a slice — the failure matrix is the whole diagnostic.
@@ -142,7 +184,7 @@ export async function runScrape(env: Env): Promise<number> {
     console.error("alerts", e);
   }
 
-  return n + exchanges.quotes.length;
+  return n + listed.length;
 }
 
 async function fireAlerts(env: Env): Promise<void> {

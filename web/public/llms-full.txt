@@ -141,7 +141,7 @@ Tools: list_symbols, get_quote, get_latest, get_ticks, get_ohlc, get_exchanges. 
 
 ## Legal
 
-- https://dollarchande.live/disclaimer/ — not an exchange, not an official rate, not advice. source is bonbast or tetherland. Those sites do not run DollarChande and this service does not claim their permission.
+- https://dollarchande.live/disclaimer/ — not an exchange, not an official rate, not advice. source names the board or exchange the figure was read from, such as bonbast, tgju, alanchand, tetherland, or a venue id. Those sites do not run DollarChande and this service does not claim their permission.
 - https://dollarchande.live/terms/
 - https://dollarchande.live/privacy/
 

@@ -305,63 +305,28 @@ export async function scrapeTabdeal(): Promise<ExchangeQuote> {
   return quote("tabdeal", "Tabdeal", buy, sell);
 }
 
+/** Aban Tether — the OTC book is `data.markets.USDTIRT`, not a flat list. */
 export async function scrapeAbanTether(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.abantether.com/api/v1/manager/otc/ticker",
-    "https://abantether.com/api/v1/otc/coin-price/?coin=USDT",
-    "https://api.abantether.com/api/v1/otc/coin-price?coin=USDT",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as Record<string, unknown> | Array<Record<string, unknown>>;
-      // ticker list form
-      if (Array.isArray(body)) {
-        const usdt = body.find(
-          (r) =>
-            String(r.symbol ?? r.coin ?? r.currency ?? "").toUpperCase() === "USDT" ||
-            String(r.name ?? "").toUpperCase().includes("TETHER"),
-        );
-        if (usdt) {
-          return quote(
-            "abantether",
-            "Aban Tether",
-            usdt.buy_price ?? usdt.buy ?? usdt.ask ?? usdt.price,
-            usdt.sell_price ?? usdt.sell ?? usdt.bid ?? usdt.price,
-            usdt.price ?? usdt.last,
-          );
-        }
-      }
-      // object form: { data: [...] } or { USDT: {...} } or flat
-      const data = (body as { data?: unknown }).data ?? body;
-      if (Array.isArray(data)) {
-        const usdt = data.find(
-          (r: Record<string, unknown>) =>
-            String(r.symbol ?? r.coin ?? r.currency ?? "").toUpperCase() === "USDT",
-        ) as Record<string, unknown> | undefined;
-        if (usdt) {
-          return quote(
-            "abantether",
-            "Aban Tether",
-            usdt.buy_price ?? usdt.buy ?? usdt.ask ?? usdt.price,
-            usdt.sell_price ?? usdt.sell ?? usdt.bid ?? usdt.price,
-          );
-        }
-      }
-      const flat = body as Record<string, unknown>;
-      const usdtObj = (flat.USDT ?? flat.usdt ?? flat) as Record<string, unknown>;
-      return quote(
-        "abantether",
-        "Aban Tether",
-        usdtObj.buy_price ?? usdtObj.buy ?? usdtObj.ask ?? usdtObj.price ?? flat.buy_price,
-        usdtObj.sell_price ?? usdtObj.sell ?? usdtObj.bid ?? usdtObj.price ?? flat.sell_price,
-        usdtObj.price ?? flat.price,
-      );
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("abantether: failed");
+  const body = (await getJson("https://api.abantether.com/api/v1/manager/otc/ticker")) as {
+    data?: { markets?: Record<string, { buy_price?: string; sell_price?: string }> };
+  };
+  const row = body.data?.markets?.USDTIRT;
+  if (!row) throw new Error("abantether: no USDTIRT");
+  // buy_price is what you pay; sell_price is what you receive. Already toman.
+  return quote("abantether", "Aban Tether", row.buy_price, row.sell_price);
+}
+
+/** Raastin — public depth. Prices are already toman. */
+export async function scrapeRaastin(): Promise<ExchangeQuote> {
+  const body = (await getJson("https://api.raastin.com/api/v1/market/depth/USDTIRT/")) as {
+    asks?: Array<{ price?: string }>;
+    bids?: Array<{ price?: string }>;
+    last_trade?: { price?: string };
+  };
+  const ask = body.asks?.[0]?.price;
+  const bid = body.bids?.[0]?.price;
+  if (ask == null && bid == null) throw new Error("raastin: empty book");
+  return quote("raastin", "Raastin", ask, bid, body.last_trade?.price);
 }
 
 /** OMPFinex */
@@ -498,40 +463,17 @@ export async function scrapeSarmayex(): Promise<ExchangeQuote> {
   throw lastErr ?? new Error("sarmayex: failed");
 }
 
+/**
+ * Bitbarg — `price` is the coin's USD peg (1 for USDT). The toman series is `chart`.
+ */
 export async function scrapeBitbarg(): Promise<ExchangeQuote> {
-  const urls = [
-    "https://api.bitbarg.com/api/v1/currencies",
-    "https://api.bitbarg.com/v1/currencies",
-    "https://api.bitbarg.com/api/v1/currencies/usdt",
-  ];
-  let lastErr: unknown;
-  for (const url of urls) {
-    try {
-      const body = (await getJson(url)) as
-        | Array<Record<string, unknown>>
-        | { data?: Array<Record<string, unknown>> | Record<string, unknown> };
-      const data = (body as { data?: unknown }).data ?? body;
-      const list = Array.isArray(data) ? data : [];
-      if (list.length) {
-        const u = list.find((x) => String(x.symbol ?? x.slug ?? x.name ?? "").toUpperCase().includes("USDT"));
-        if (u) {
-          return quote(
-            "bitbarg",
-            "Bitbarg",
-            u.buyPrice ?? u.buy ?? u.ask ?? u.price,
-            u.sellPrice ?? u.sell ?? u.bid ?? u.price,
-          );
-        }
-      }
-      if (data && typeof data === "object" && !Array.isArray(data)) {
-        const d = data as Record<string, unknown>;
-        return quote("bitbarg", "Bitbarg", d.buy ?? d.ask ?? d.price, d.sell ?? d.bid ?? d.price);
-      }
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr ?? new Error("bitbarg: failed");
+  const body = (await getJson("https://api.bitbarg.com/api/v1/currencies")) as {
+    result?: { items?: Array<{ coin?: string; chart?: number[] }> };
+  };
+  const row = (body.result?.items ?? []).find((x) => (x.coin ?? "").toUpperCase() === "USDT");
+  const last = row?.chart?.at(-1);
+  if (last == null) throw new Error("bitbarg: no USDT chart");
+  return quote("bitbarg", "Bitbarg", last, last, last);
 }
 
 /**
@@ -658,6 +600,7 @@ const SCRAPERS: Array<{ id: string; run: Scraper }> = [
   { id: "ramzinex", run: scrapeRamzinex },
   { id: "exir", run: scrapeExir },
   { id: "tabdeal", run: scrapeTabdeal },
+  { id: "raastin", run: scrapeRaastin },
   { id: "abantether", run: scrapeAbanTether },
   { id: "ompfinex", run: scrapeOmpfinex },
   { id: "bit24", run: scrapeBit24 },
