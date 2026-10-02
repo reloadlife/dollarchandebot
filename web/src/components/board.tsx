@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CandleChart } from "@/components/candle-chart";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Price } from "@/components/ui/price";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { candlesFromDays, candlesFromTicks, type Candle } from "@/lib/candles";
 import {
   changePct,
-  chartUrl,
   fetchExchanges,
   fetchLatest,
   fetchOhlc,
+  fetchTicks,
   quoteLabel,
   type Kind,
   type OhlcDay,
   type Quote,
+  type Tick,
   type Venue,
 } from "@/lib/rates";
 import { cn, en, fa, faNumber, faPercent } from "@/lib/utils";
@@ -63,6 +66,7 @@ export function Board() {
   const [selected, setSelected] = useState("USD");
   const [range, setRange] = useState<"24h" | "7d">("24h");
   const [days, setDays] = useState<OhlcDay[] | null>(null);
+  const [ticks, setTicks] = useState<Tick[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -91,12 +95,17 @@ export function Board() {
   useEffect(() => {
     let stop = false;
     setDays(null);
-    fetchOhlc(selected)
-      .then((data) => {
-        if (!stop) setDays(data.days);
+    setTicks(null);
+    Promise.all([fetchOhlc(selected), fetchTicks(selected)])
+      .then(([ohlc, series]) => {
+        if (stop) return;
+        setDays(ohlc.days);
+        setTicks(series.ticks);
       })
       .catch(() => {
-        if (!stop) setDays([]);
+        if (stop) return;
+        setDays([]);
+        setTicks([]);
       });
     return () => {
       stop = true;
@@ -123,6 +132,22 @@ export function Board() {
 
   const current = quotes?.find((quote) => quote.id === selected);
   const currentLabel = current ? quoteLabel(current) : selected;
+  const candles = useMemo<Candle[] | null>(() => {
+    if (range === "24h") return ticks ? candlesFromTicks(ticks) : null;
+    return days ? candlesFromDays(days, 7) : null;
+  }, [range, ticks, days]);
+  const axis = useMemo(() => {
+    if (range === "24h" && ticks && ticks.length > 0) {
+      const first = ticks.reduce((min, tick) => Math.min(min, tick.ts), ticks[0].ts);
+      const last = ticks.reduce((max, tick) => Math.max(max, tick.ts), ticks[0].ts);
+      return { start: fa(tehranClock(first)), end: fa(tehranClock(last)) };
+    }
+    if (range === "7d" && days && days.length > 0) {
+      const slice = days.slice(-7);
+      return { start: fa(slice[0].day.slice(5)), end: fa(slice[slice.length - 1].day.slice(5)) };
+    }
+    return { start: "", end: "" };
+  }, [range, ticks, days]);
 
   function pick(id: string) {
     setSelected(id);
@@ -137,7 +162,7 @@ export function Board() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <aside ref={detailRef} className="scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:self-start">
+      <aside ref={detailRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-1 lg:self-start">
         <p className="text-sm text-muted-foreground">{currentLabel}</p>
         <div aria-live="polite">
           {current?.price != null ? (
@@ -169,11 +194,11 @@ export function Board() {
             </button>
           ))}
         </div>
-        <img
-          key={`${selected}-${range}`}
-          src={chartUrl(selected, range)}
-          alt={`نمودار ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
-          className="mt-4 min-h-40 w-full rounded-[16px] border border-border bg-card"
+        <CandleChart
+          candles={candles}
+          startLabel={axis.start}
+          endLabel={axis.end}
+          label={`نمودار شمعی ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
         />
         {days && days.length > 0 ? (
           <table className="mt-4 hidden w-full text-sm sm:table">

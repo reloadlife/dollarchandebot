@@ -37,7 +37,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 px-3 pt-3">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 rounded-full border border-border bg-card/90 px-2 py-1.5 shadow-[0_16px_40px_-28px_oklch(0_0_0/0.8)] backdrop-blur-md sm:px-3 lg:w-fit lg:gap-1">
-        <Link href="/" className="shrink-0 px-2 text-base font-semibold text-foreground">
+        <Link href="/" className="flex shrink-0 items-center gap-2 px-2 text-base font-semibold text-foreground">
+          <img src="/logo.png" alt="" width={28} height={28} className="size-7 rounded-full" />
           دلارچنده
         </Link>
         <nav className="hidden items-center gap-0.5 lg:flex" aria-label="صفحه">

@@ -73,8 +73,3 @@ export function fetchTicks(id: string) {
 export function fetchOhlc(id: string) {
   return getJson<{ days: OhlcDay[] }>(`/api/v1/symbols/${encodeURIComponent(id)}/ohlc?days=14`);
 }
-
-export function chartUrl(id: string, range: "24h" | "7d" = "24h"): string {
-  const q = range === "7d" ? "?r=7d" : "";
-  return `${API_BASE}/chart/${encodeURIComponent(id)}.png${q}`;
-}
