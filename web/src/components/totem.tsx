@@ -83,7 +83,7 @@ export function Totem() {
   const stamp = lead?.updated_at ? fa(tehranClock(lead.updated_at)) : null;
 
   return (
-    <div className="rounded-[16px] border border-border bg-card p-3 shadow-[0_22px_40px_-26px_oklch(0.1_0.04_45)] sm:p-4">
+    <div className="rounded-[29px] border border-border bg-card p-3 shadow-[0_22px_40px_-26px_oklch(0.1_0.04_45)] sm:rounded-[33px] sm:p-4">
       <div className="totem-well rounded-[16px] px-4 py-5 sm:px-6 sm:py-7">
         <p className="totem-dim mb-3 text-sm">
           {leadName} <span dir="ltr">USD</span>
