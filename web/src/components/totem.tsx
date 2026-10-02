@@ -1,5 +1,7 @@
 "use client";
 
+import { Freshness } from "@/components/freshness";
+
 import { useEffect, useState } from "react";
 import { SegmentReadout } from "@/components/segments";
 import { fetchLatest, quoteLabel, type Quote } from "@/lib/rates";
@@ -86,6 +88,7 @@ export function Totem() {
         <p className="totem-dim mb-3 text-sm">
           {leadName} <span dir="ltr">USD</span>
         </p>
+        <Freshness updatedAt={lead?.updated_at} failed={failed} />
         <Readout value={leadPrice} label={leadLabel} mobile={52} desktop={84} digits={6} />
         <p className="totem-dim mt-3 text-sm">{stamp ? `آخرین نرخ، ${stamp}` : "تومان"}</p>
         {failed ? (
@@ -112,6 +115,7 @@ export function Totem() {
                     </>
                   ) : null}
                 </p>
+                <Freshness updatedAt={q?.updated_at} failed={failed} />
                 <Readout
                   value={price}
                   label={price ? `${price} تومان` : row.id}

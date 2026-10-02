@@ -7,6 +7,8 @@ import { GirihBackground } from "@/components/vibefarsi/girih";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/dashboard/" },
+  openGraph: { title: "داشبورد · دلارچنده", description: "تابلوی زنده نرخ بازار آزاد برای فروشگاه. بدون حساب. قیمت‌ها تومان‌اند.", url: "/dashboard/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "داشبورد · دلارچنده",
   description: "تابلوی زنده نرخ بازار آزاد برای فروشگاه. بدون حساب. قیمت‌ها تومان‌اند.",
 };

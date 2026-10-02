@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BOT_URL } from "@/lib/rates";
@@ -19,16 +20,14 @@ function current(pathname: string, match?: string) {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const open = menuPath === pathname;
+  const setOpen = (value: boolean) => setMenuPath(value ? pathname : null);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setMenuPath(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -38,7 +37,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 px-3 pt-3">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2 rounded-full border border-border bg-card/90 px-2 py-1.5 shadow-[0_16px_40px_-28px_oklch(0_0_0/0.8)] backdrop-blur-md sm:px-3 lg:w-fit lg:gap-1">
         <Link href="/" className="flex shrink-0 items-center gap-2 px-2 text-base font-semibold text-foreground">
-          <img src="/logo.png" alt="" width={28} height={28} className="size-7 rounded-full" />
+          <Image src="/logo.png" alt="" width={28} height={28} className="size-7 rounded-full" />
           دلارچنده
         </Link>
         <nav className="hidden items-center gap-0.5 lg:flex" aria-label="صفحه">
@@ -48,6 +47,7 @@ export function SiteHeader() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={() => setMenuPath(null)}
                 aria-current={on ? "page" : undefined}
                 className={`inline-flex h-9 items-center rounded-full px-3 text-sm ${
                   on ? "bg-foreground font-semibold text-background" : "text-foreground/75 hover:text-foreground"
@@ -66,7 +66,7 @@ export function SiteHeader() {
           className="inline-flex h-11 items-center rounded-full px-3 text-sm font-semibold text-foreground lg:hidden"
           aria-expanded={open}
           aria-controls="site-menu"
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => setOpen(!open)}
         >
           {open ? "بستن" : "منو"}
         </button>
@@ -83,6 +83,7 @@ export function SiteHeader() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={() => setMenuPath(null)}
                 aria-current={on ? "page" : undefined}
                 className={`flex h-11 items-center rounded-[16px] px-3 text-sm ${
                   on ? "bg-foreground font-semibold text-background" : "text-foreground hover:bg-muted"

@@ -46,32 +46,9 @@ export function TabsList({
   "aria-label"?: string;
 }) {
   const ctx = React.useContext(TabsCtx)!;
-  const list = React.useRef<HTMLDivElement>(null);
-  const [pill, setPill] = React.useState<{ x: number; w: number } | null>(null);
-
-  const measure = React.useCallback(() => {
-    if (ctx.variant !== "segmented") {
-      setPill(null);
-      return;
-    }
-    const root = list.current;
-    const el = root?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (!root || !el) return setPill(null);
-    setPill({ x: el.offsetLeft, w: el.offsetWidth });
-  }, [ctx.variant, ctx.value]);
-
-  React.useLayoutEffect(measure, [measure, children]);
-  React.useEffect(() => {
-    const root = list.current;
-    if (!root || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(root);
-    return () => ro.disconnect();
-  }, [measure]);
 
   return (
     <div
-      ref={list}
       role="tablist"
       aria-label={label}
       onKeyDown={(e) => {
@@ -92,13 +69,6 @@ export function TabsList({
         className,
       )}
     >
-      {ctx.variant === "segmented" && pill ? (
-        <span
-          aria-hidden
-          className="absolute inset-y-0.5 -z-10 rounded-control bg-background shadow-sm ring-1 ring-border transition-[transform,width] duration-(--motion) ease-motion"
-          style={{ width: pill.w, left: 0, transform: `translateX(${pill.x}px)` }}
-        />
-      ) : null}
       {children}
     </div>
   );
@@ -129,7 +99,7 @@ export function TabsTrigger({
         ctx.variant === "segmented"
           ? cn(
               "rounded-control px-3 py-1.5",
-              active ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
+              active ? "bg-background shadow-sm ring-1 ring-border font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
             )
           : cn(
               "-mb-px border-b-2 px-3 py-2",

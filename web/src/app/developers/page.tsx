@@ -7,6 +7,8 @@ import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/developers/" },
+  openGraph: { title: "API · دلارچنده", description: "مسیرهای عمومی نرخ تومان. سایت با Origin خودش کلید نمی‌فرستد. افزونه و بقیه کلاینت‌ها بدون کلید ۴۰۱ می‌گیرند.", url: "/developers/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "API · دلارچنده",
   description: "مسیرهای عمومی نرخ تومان. سایت با Origin خودش کلید نمی‌فرستد. افزونه و بقیه کلاینت‌ها بدون کلید ۴۰۱ می‌گیرند.",
 };

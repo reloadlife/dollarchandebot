@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { Board } from "@/components/board";
 
-export const metadata: Metadata = { title: "تابلو · دلارچنده" };
+export const metadata: Metadata = {
+  alternates: { canonical: "/board/" },
+  openGraph: { title: "تابلو · دلارچنده", url: "/board/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
+  title: "تابلو · دلارچنده",
+  description: "تابلوی زنده نرخ بازار آزاد، ارز، طلا و سکه به تومان.",
+};
 
 export default function BoardPage() {
   return (

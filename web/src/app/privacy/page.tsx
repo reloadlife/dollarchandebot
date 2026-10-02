@@ -4,6 +4,8 @@ import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy/" },
+  openGraph: { title: "حریم خصوصی · دلارچنده", description: "خواندن نرخ حساب نمی‌خواهد. هشدار شناسه گفتگوی تلگرام را نگه می‌دارد. کلید API فقط به‌صورت درهم ذخیره می‌شود.", url: "/privacy/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "حریم خصوصی · دلارچنده",
   description: "خواندن نرخ حساب نمی‌خواهد. هشدار شناسه گفتگوی تلگرام را نگه می‌دارد. کلید API فقط به‌صورت درهم ذخیره می‌شود.",
 };

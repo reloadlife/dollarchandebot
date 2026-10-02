@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Freshness } from "@/components/freshness";
 import { PriceChart, type PricePoint } from "@/components/price-chart";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Price } from "@/components/ui/price";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   changePct,
   fetchExchanges,
@@ -64,24 +65,30 @@ export function Board() {
   const [venues, setVenues] = useState<Venue[] | null>(null);
   const [selected, setSelected] = useState("USD");
   const [range, setRange] = useState<"24h" | "7d">("24h");
-  const [days, setDays] = useState<OhlcDay[] | null>(null);
-  const [ticks, setTicks] = useState<Tick[] | null>(null);
+  const [history, setHistory] = useState<{ symbol: string; days: OhlcDay[] | null; ticks: Tick[] | null; dayError: boolean; tickError: boolean } | null>(null);
+  const days = history?.symbol === selected ? history.days : null;
+  const ticks = history?.symbol === selected ? history.ticks : null;
+  const chartError = history?.symbol === selected && (range === "24h" ? history.tickError : history.dayError);
+  const [venueError, setVenueError] = useState(false);
+  const [chartAttempt, setChartAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let stop = false;
     const load = () => {
-      Promise.all([fetchLatest(), fetchExchanges()])
-        .then(([latest, book]) => {
+      fetchLatest()
+        .then((latest) => {
           if (stop) return;
           setQuotes(latest.quotes);
-          setVenues(book.venues);
           setError(null);
         })
         .catch(() => {
           if (!stop) setError("نرخ تازه نرسید.");
         });
+      fetchExchanges().then((book) => {
+        if (!stop) { setVenues(book.venues); setVenueError(false); }
+      }).catch(() => { if (!stop) setVenueError(true); });
     };
     load();
     const id = window.setInterval(load, 60_000);
@@ -93,23 +100,42 @@ export function Board() {
 
   useEffect(() => {
     let stop = false;
-    setDays(null);
-    setTicks(null);
-    Promise.all([fetchOhlc(selected), fetchTicks(selected)])
-      .then(([ohlc, series]) => {
-        if (stop) return;
-        setDays(ohlc.days);
-        setTicks(series.ticks);
-      })
-      .catch(() => {
-        if (stop) return;
-        setDays([]);
-        setTicks([]);
-      });
-    return () => {
-      stop = true;
+    const load = async () => {
+      const [ohlc, series] = await Promise.allSettled([fetchOhlc(selected), fetchTicks(selected)]);
+      if (stop) return;
+      setHistory((previous) => ({
+        symbol: selected,
+        days: ohlc.status === "fulfilled" ? ohlc.value.days : previous?.symbol === selected ? previous.days : null,
+        ticks: series.status === "fulfilled" ? series.value.ticks : previous?.symbol === selected ? previous.ticks : null,
+        dayError: ohlc.status === "rejected",
+        tickError: series.status === "rejected",
+      }));
     };
-  }, [selected]);
+    void load();
+    const timer = window.setInterval(load, 60_000);
+    return () => { stop = true; window.clearInterval(timer); };
+  }, [selected, chartAttempt]);
+
+  useEffect(() => {
+    const restore = () => {
+      const params = new URLSearchParams(window.location.search);
+      const symbol = params.get("symbol") ?? "USD";
+      setSelected(/^[A-Z0-9_]{1,20}$/.test(symbol) ? symbol : "USD");
+      setRange(params.get("range") === "7d" ? "7d" : "24h");
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+
+  function selectView(symbol: string, nextRange: "24h" | "7d") {
+    setSelected(symbol);
+    setRange(nextRange);
+    const url = new URL(window.location.href);
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("range", nextRange);
+    window.history.pushState(null, "", url);
+  }
 
   const needle = en(query.trim().toLowerCase());
   const rows = useMemo(() => {
@@ -143,8 +169,7 @@ export function Board() {
   }, [range, ticks, days]);
 
   function pick(id: string) {
-    setSelected(id);
-    setRange("24h");
+    selectView(id, "24h");
     if (window.matchMedia("(max-width: 1023px)").matches) {
       detailRef.current?.scrollIntoView({
         behavior: prefersReducedMotion() ? "auto" : "smooth",
@@ -164,7 +189,7 @@ export function Board() {
                 key={item}
                 type="button"
                 aria-pressed={range === item}
-                onClick={() => setRange(item)}
+                onClick={() => selectView(selected, item)}
                 className={cn(
                   "inline-flex h-11 items-center rounded-[16px] px-4 text-sm",
                   range === item ? "bg-brand font-semibold text-brand-foreground" : "bg-muted text-muted-foreground",
@@ -175,10 +200,11 @@ export function Board() {
             ))}
           </div>
         </div>
-        <PriceChart
+        {chartError ? <p role="status" className="mt-3 text-sm text-destructive">نمودار تازه نرسید. {points ? "نمودار قبلی مانده است." : ""} <button type="button" className="font-semibold text-brand" onClick={() => setChartAttempt((n) => n + 1)}>تلاش دوباره</button></p> : null}
+        {!(chartError && !points) ? <PriceChart key={`${selected}-${range}`}
           points={points}
           label={`نمودار ${range === "24h" ? "۲۴ ساعت" : "۷ روز"} ${currentLabel}`}
-        />
+        /> : null}
       </section>
       <aside ref={detailRef} className="min-w-0 scroll-mt-20 lg:sticky lg:top-20 lg:col-start-2 lg:row-start-2 lg:self-start">
         <p className="text-sm text-muted-foreground">{currentLabel}</p>
@@ -196,6 +222,8 @@ export function Board() {
         {current?.updated_at ? (
           <p className="mt-1 text-sm text-muted-foreground">ساعت {fa(tehranClock(current.updated_at))} به وقت تهران</p>
         ) : null}
+        <Freshness updatedAt={current?.updated_at} failed={Boolean(error)} />
+
         {days && days.length > 0 ? (
           <table className="mt-4 hidden w-full text-sm sm:table">
             <tbody>
@@ -213,32 +241,16 @@ export function Board() {
       </aside>
 
       <div className="lg:col-start-1 lg:row-start-2">
-        {error && !quotes ? (
-          <EmptyState
-            title="نرخ‌ها نرسید"
-            description="اتصال قطع شد. دوباره بخوان."
-            action={
-              <button
-                type="button"
-                onClick={() => setAttempt((value) => value + 1)}
-                className="inline-flex h-11 items-center rounded-[16px] bg-brand px-4 text-sm font-semibold text-brand-foreground"
-              >
-                دوباره بخوان
-              </button>
-            }
-          />
-        ) : (
-          <>
+        <>
             {error ? <p className="mb-3 text-sm text-destructive">{error} عدد قبلی مانده است.</p> : null}
             <Tabs value={tab} defaultValue="rates" onValueChange={setTab}>
               <TabsList aria-label="بخش تابلو">
                 <TabsTrigger value="rates">نرخ‌ها</TabsTrigger>
                 <TabsTrigger value="usdt">صرافی‌های تتر</TabsTrigger>
               </TabsList>
-            </Tabs>
 
             {tab === "rates" ? (
-              <div className="mt-4">
+              <TabsContent value="rates" className="mt-4">
                 <label htmlFor="board-search" className="text-sm text-muted-foreground">
                   جستجو
                 </label>
@@ -267,7 +279,7 @@ export function Board() {
                     </button>
                   ))}
                 </div>
-                {!quotes ? (
+                {!quotes && error ? <EmptyState title="نرخ‌ها نرسید" description="اتصال قطع شد." action={<button type="button" onClick={() => setAttempt((n) => n + 1)} className="text-brand">دوباره بخوان</button>} /> : !quotes ? (
                   <Skeleton className="mt-4 h-64 w-full" />
                 ) : rows.length === 0 ? (
                   <div className="mt-4">
@@ -303,6 +315,7 @@ export function Board() {
                               <span className="text-xs text-muted-foreground" dir="ltr">
                                 {quote.id}
                               </span>
+                              <Freshness updatedAt={quote.updated_at} failed={Boolean(error)} />
                             </span>
                             <span className="text-end">
                               {quote.price == null ? (
@@ -322,10 +335,11 @@ export function Board() {
                     })}
                   </ul>
                 )}
-              </div>
+              </TabsContent>
             ) : (
-              <div className="mt-4">
-                {!venues ? (
+              <TabsContent value="usdt" className="mt-4">
+                {venueError ? <p role="status" className="mb-3 text-sm text-destructive">صرافی‌ها نرسیدند. {venues ? "عدد قبلی مانده است." : ""} <button type="button" onClick={() => setAttempt((n) => n + 1)} className="font-semibold text-brand">تلاش دوباره</button></p> : null}
+                {!venues && venueError ? null : !venues ? (
                   <Skeleton className="h-64 w-full" />
                 ) : venues.length === 0 ? (
                   <EmptyState title="صرافی زنده‌ای نیست" description="نیم‌ساعت است که هیچ صرافی جواب نداده." />
@@ -336,7 +350,7 @@ export function Board() {
                         key={venue.exchange}
                         className="flex items-baseline justify-between gap-3 border-t border-border px-4 py-3 first:border-t-0"
                       >
-                        <span className="font-medium">{venue.name}</span>
+                        <span><span className="font-medium">{venue.name}</span><Freshness updatedAt={venue.updated_at} failed={venueError} /></span>
                         <span className="text-end text-sm tabular-nums">
                           <span className="text-muted-foreground">خرید </span>
                           {venue.buy == null ? "نیامده" : faNumber(venue.buy)}
@@ -348,10 +362,10 @@ export function Board() {
                   </ul>
                 )}
                 <p className="mt-3 text-sm text-muted-foreground">خرید، تومان پرداختی برای یک تتر است. فروش، تومان دریافتی است.</p>
-              </div>
+              </TabsContent>
             )}
-          </>
-        )}
+            </Tabs>
+        </>
       </div>
     </div>
   );

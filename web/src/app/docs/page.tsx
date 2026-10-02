@@ -9,6 +9,8 @@ import { BOT_URL } from "@/lib/rates";
 import { fa } from "@/lib/utils";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/docs/" },
+  openGraph: { title: "راهنما · دلارچنده", description: "نصب افزونه وردپرس، ووکامرس و WHMCS، و هشدار تلگرام. هر سه افزونه کلید ربات می‌خواهند.", url: "/docs/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "راهنما · دلارچنده",
   description: "نصب افزونه وردپرس، ووکامرس و WHMCS، و هشدار تلگرام. هر سه افزونه کلید ربات می‌خواهند.",
 };
@@ -122,7 +124,7 @@ export default function DocsPage() {
               <CopyBlock text='[dollarchande symbol="USD"]' label="کپی شورت‌کد" caption="شورت‌کد" />
             </div>
             <p className="mt-4 text-sm leading-7 text-foreground/75">
-              در قالب می‌توانی <span className="font-mono" dir="ltr">dollarchande_rate('USD')</span> را صدا بزنی. اگر نرخ نرسد، null برمی‌گردد.
+              در قالب می‌توانی <span className="font-mono" dir="ltr">{"dollarchande_rate('USD')"}</span> را صدا بزنی. اگر نرخ نرسد، null برمی‌گردد.
             </p>
             <a href="/downloads/dollarchande-wordpress.zip" className="mt-4 inline-flex text-sm font-semibold text-brand">
               دریافت وردپرس

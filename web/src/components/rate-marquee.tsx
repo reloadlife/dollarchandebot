@@ -1,5 +1,7 @@
 "use client";
 
+import { Freshness } from "@/components/freshness";
+
 import { useEffect, useState } from "react";
 import { Marquee } from "@/components/vibefarsi/marquee";
 import { fetchLatest, quoteLabel, type Quote } from "@/lib/rates";
@@ -45,7 +47,7 @@ export function RateMarquee() {
             <span key={quote.id} className="inline-flex items-baseline gap-2 px-5 text-sm">
               <span className="text-muted-foreground">{quoteLabel(quote)}</span>
               <span className="font-semibold tabular-nums text-foreground">{faNumber(quote.price!)}</span>
-              <span className="text-xs text-muted-foreground">تومان</span>
+              <span className="text-xs text-muted-foreground">تومان</span><Freshness updatedAt={quote.updated_at} />
             </span>
           ))}
         </Marquee>

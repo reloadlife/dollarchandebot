@@ -1,6 +1,9 @@
 "use client";
 
+import { Freshness } from "@/components/freshness";
+
 import { useEffect, useState } from "react";
+import { ShopCalculator } from "./shop-calculator";
 import { BorderBeam } from "@/components/magicui/border-beam";
 import { SegmentReadout } from "@/components/segments";
 import { fetchLatest, quoteLabel, type Quote } from "@/lib/rates";
@@ -73,7 +76,7 @@ export function ShopBoard() {
   return (
     <div className="relative mt-8 overflow-hidden rounded-[16px] border border-border bg-card p-3 sm:p-4">
       <BorderBeam colorFrom="#F8E7B0" colorTo="#E6C56A" size={90} duration={12} borderWidth={1.5} />
-      {failed && !quotes ? (
+      {failed ? (
         <p className="mb-3 px-1 text-sm text-destructive" role="status">
           نرخ‌ها نرسید.{" "}
           <button type="button" onClick={() => setAttempt((value) => value + 1)} className="font-semibold text-brand">
@@ -95,6 +98,7 @@ export function ShopBoard() {
                 {name}{" "}
                 <span dir="ltr">{row.id}</span>
               </p>
+              <Freshness updatedAt={quote?.updated_at} failed={failed} />
               <Readout
                 value={price}
                 label={price ? `${price} تومان` : `در حال خواندن ${name}`}
@@ -106,6 +110,7 @@ export function ShopBoard() {
           );
         })}
       </div>
+      <ShopCalculator quotes={quotes} failed={failed} />
     </div>
   );
 }

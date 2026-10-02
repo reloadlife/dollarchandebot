@@ -4,6 +4,8 @@ import { PageWash } from "@/components/page-wash";
 import { GirihBackground } from "@/components/vibefarsi/girih";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms/" },
+  openGraph: { title: "شرایط استفاده · دلارچنده", description: "نرخ‌ها بازار آزاد به تومان‌اند و توصیه مالی نیستند. افزونه‌ها رایگان‌اند و کلید ربات می‌خواهند.", url: "/terms/", images: ["/social-card.png"], locale: "fa_IR", type: "website" },
   title: "شرایط استفاده · دلارچنده",
   description: "نرخ‌ها بازار آزاد به تومان‌اند و توصیه مالی نیستند. افزونه‌ها رایگان‌اند و کلید ربات می‌خواهند.",
 };

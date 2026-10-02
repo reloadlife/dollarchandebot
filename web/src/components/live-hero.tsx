@@ -1,5 +1,7 @@
 "use client";
 
+import { Freshness } from "@/components/freshness";
+
 import { useEffect, useState } from "react";
 import { Price } from "@/components/ui/price";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +19,7 @@ export function LiveHero() {
     const load = () => {
       fetchLatest()
         .then((data) => {
-          if (!stop) setQuotes(data.quotes);
+          if (!stop) { setQuotes(data.quotes); setError(false); }
         })
         .catch(() => {
           if (!stop) setError(true);
@@ -46,6 +48,7 @@ export function LiveHero() {
   return (
     <div>
       <p className="text-sm text-muted-foreground">{quoteLabel(lead)}</p>
+      <Freshness updatedAt={lead.updated_at} />
       <Price amount={lead.price} size="lg" />
       {delta != null && (
         <p className={delta >= 0 ? "text-sm text-success" : "text-sm text-destructive"}>
