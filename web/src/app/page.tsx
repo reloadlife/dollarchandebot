@@ -6,7 +6,7 @@ import { Rise } from "@/components/rise";
 import { riseDelay } from "@/lib/motion";
 import { HeroStage } from "@/components/hero-stage";
 import { Totem } from "@/components/totem";
-import { PageWash } from "@/components/page-wash";
+import { GlowFrame, PageWash } from "@/components/page-wash";
 import { ShineButton } from "@/components/vibefarsi/shine-button";
 import { API_BASE, BOT_URL } from "@/lib/rates";
 import { fa } from "@/lib/utils";
@@ -20,6 +20,12 @@ const apiSteps = [
   ["کلید بگیر", "ربات را باز کن و /key را بفرست. کلید را یک بار می‌بینی."],
   ["درخواست بفرست", "کلید را در Authorization: Bearer بگذار و نماد را صدا بزن."],
   ["قیمت را نشان بده", "price تومان است. نمودار /chart/USD.png کلید نمی‌خواهد."],
+] as const;
+
+const beats = [
+  ["تابلو", "نرخ بازار آزاد همین حالا روی تابلو است. خواندنش حساب نمی‌خواهد. واحد تومان است."],
+  ["فروشگاه", "افزونه وردپرس، ووکامرس یا WHMCS همان نرخ را در قیمت می‌نویسد. کلید را ربات می‌دهد."],
+  ["هشدار", "با /alert بگو از چه قیمتی خبر بدهد. یک‌بار یا تکراری. کانال یک فهرست سنجاق‌شده است."],
 ] as const;
 
 const fields = [
@@ -67,6 +73,17 @@ export default function HomePage() {
       </section>
 
       <RateMarquee />
+
+      <section className="border-t border-border">
+        <div className="mx-auto grid max-w-6xl gap-3 px-4 py-10 sm:grid-cols-3 lg:py-14">
+          {beats.map(([title, body]) => (
+            <article key={title} className="rounded-[16px] border border-border bg-card px-5 py-5">
+              <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+              <p className="mt-2 text-sm leading-7 text-foreground/75">{body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section id="plugins" className="scroll-mt-20 border-t border-border">
         <div className="mx-auto grid max-w-6xl items-start gap-8 px-4 py-16 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:py-20">
@@ -117,18 +134,20 @@ export default function HomePage() {
             <div className="rise-child">
               <CopyBlock text={curl} label="کپی دستور" caption="GET /api/v1/symbols/USD" />
             </div>
-            <div className="rise-child overflow-hidden rounded-[16px] border border-border" style={riseDelay(120)}>
-              <div className="flex h-[60px] items-center bg-[oklch(0.1_0.025_48)] px-4">
-                <p className="text-sm font-semibold text-[oklch(0.84_0.05_85)]">پاسخ</p>
-              </div>
-              <dl className="bg-card px-4">
-                {fields.map(([name, note]) => (
-                  <div key={name} className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0">
-                    <dt className="font-mono text-sm text-brand">{name}</dt>
-                    <dd className="text-sm text-foreground/75">{note}</dd>
-                  </div>
-                ))}
-              </dl>
+            <div className="rise-child" style={riseDelay(120)}>
+              <GlowFrame className="border border-border">
+                <div className="flex h-[60px] items-center bg-[oklch(0.1_0.025_48)] px-4">
+                  <p className="text-sm font-semibold text-[oklch(0.84_0.05_85)]">پاسخ</p>
+                </div>
+                <dl className="bg-card px-4">
+                  {fields.map(([name, note]) => (
+                    <div key={name} className="flex items-baseline justify-between gap-4 border-t border-border py-3 first:border-t-0">
+                      <dt className="font-mono text-sm text-brand">{name}</dt>
+                      <dd className="text-sm text-foreground/75">{note}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </GlowFrame>
             </div>
           </Rise>
           <div className="mt-8 flex flex-wrap gap-3">

@@ -25,18 +25,15 @@ export function AuroraBackground({
         {
           "--aurora":
             "repeating-linear-gradient(100deg,#f6d27a_10%,#e39b3a_15%,#fff1cc_20%,#c47a2a_25%,#ffe7a3_30%)",
-          "--dark-gradient":
-            "repeating-linear-gradient(100deg,#000_0%,#000_7%,transparent_10%,transparent_12%,#000_16%)",
-          "--transparent": "transparent",
         } as CSSProperties
       }
     >
       <div
         className={cn(
-          "after:animate-aurora-wash pointer-events-none absolute -inset-[10px] opacity-45 blur-[12px] [background-image:var(--dark-gradient),var(--aurora)] [background-size:300%,_200%] [background-position:50%_50%,50%_50%] will-change-transform",
-          "after:absolute after:inset-0 after:mix-blend-difference after:content-[''] after:[background-image:var(--dark-gradient),var(--aurora)] after:[background-size:200%,_100%]",
+          "after:animate-aurora-wash pointer-events-none absolute -inset-[10px] opacity-80 blur-[18px] [background-image:var(--aurora)] [background-size:220%] [background-position:50%_50%] will-change-transform",
+          "after:absolute after:inset-0 after:opacity-70 after:mix-blend-soft-light after:content-[''] after:[background-image:var(--aurora)] after:[background-size:180%]",
           showRadialGradient &&
-            "[mask-image:radial-gradient(ellipse_at_72%_18%,black_8%,transparent_70%)]",
+            "[mask-image:radial-gradient(ellipse_at_50%_40%,black_28%,transparent_74%)]",
         )}
       />
     </div>

@@ -1,9 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AuroraBackground } from "@/components/aceternity/aurora-background";
 import { BackgroundBeams } from "@/components/aceternity/background-beams";
 import { Spotlight } from "@/components/aceternity/spotlight";
 import { BorderBeam } from "@/components/magicui/border-beam";
+import { cn } from "@/lib/utils";
 
 /**
  * Night wash for a page hero. Aceternity aurora, beams, and spotlight plus
@@ -14,9 +16,21 @@ export function PageWash() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 isolate overflow-hidden">
       <AuroraBackground />
-      <BackgroundBeams />
-      <Spotlight className="-top-[30%] start-[-10%] h-[80%] w-[70%]" fill="#F6D48A" />
-      <BorderBeam size={140} duration={14} colorFrom="#F6D48A" colorTo="#E39B3A" borderWidth={1} />
+      <BackgroundBeams className="opacity-90 [mask-image:radial-gradient(ellipse_at_center,black_15%,transparent_72%)]" />
+      <Spotlight className="-top-[20%] start-[-8%] h-[70%] w-[78%]" fill="#F6D48A" />
+      <div className="absolute inset-3 overflow-hidden rounded-[16px] sm:inset-4">
+        <BorderBeam size={180} duration={13} colorFrom="#F6D48A" colorTo="#E39B3A" borderWidth={1.5} />
+      </div>
+    </div>
+  );
+}
+
+/** Rounded frame with the same amber border beam, for a card the eye lands on. */
+export function GlowFrame({ className, children }: { className?: string; children: ReactNode }) {
+  return (
+    <div className={cn("relative overflow-hidden rounded-[16px]", className)}>
+      <BorderBeam size={110} duration={11} colorFrom="#F6D48A" colorTo="#E39B3A" borderWidth={1.5} />
+      {children}
     </div>
   );
 }

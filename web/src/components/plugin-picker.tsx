@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState } from "react";
+import { GlowFrame } from "@/components/page-wash";
 import { fa } from "@/lib/utils";
 
 const PLUGINS = [
@@ -81,7 +82,7 @@ export function PluginPicker() {
   }, [id]);
 
   return (
-    <div className="lift rounded-[16px] border border-border bg-card p-5 sm:p-7">
+    <GlowFrame className="lift border border-border bg-card p-5 sm:p-7">
       <div
         ref={listRef}
         role="tablist"
@@ -161,6 +162,6 @@ export function PluginPicker() {
           </a>
         </div>
       </div>
-    </div>
+    </GlowFrame>
   );
 }
