@@ -61,7 +61,7 @@ JPY is 10 Japanese yen. AMD is 10 Armenian dram. IQD is 100 Iraqi dinar.
 
 Gold: MITHQAL (mesghal), GOLD18 (18k gram; aliases gold, geram), GOLD24 (24k gram), OUNCE. The OUNCE name is "Gold Ounce (USD)". The JSON field `unit` is still `toman`. Do not treat OUNCE as an 18k toman gram.
 
-Silver: SILVER (999 gram, toman; alias نقره), XAG (ounce, USD). Platinum: XPT (ounce, USD). XAG and XPT follow the OUNCE rule: the number is dollars and `unit` is still `toman`. They are not on the pinned channel list.
+Silver: SILVER (999 gram, toman; alias نقره), XAG (ounce, USD). Platinum: XPT (ounce, USD). XAG and XPT follow the OUNCE rule: the number is dollars and `unit` is still `toman`. SILVER is on the channel board and the bot home. XAG and XPT are not.
 
 Coins: EMAMI, AZADI, HALF (½ Azadi; alias nim), QUARTER (alias rob), GERAMI.
 

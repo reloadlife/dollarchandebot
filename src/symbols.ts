@@ -53,7 +53,7 @@ export const SYMBOLS: SymbolDef[] = [
   { id: "GOLD18", sourceKey: "gol18", source: "bonbast", name: "Gold Gram (18k)", emoji: "🥇", kind: "gold", aliases: ["gold", "geram", "گرم", "gol18"], channelList: true },
   { id: "OUNCE", sourceKey: "ounce", source: "bonbast", name: "Gold Ounce (USD)", emoji: "🟡", kind: "gold", aliases: ["ons"], channelList: false },
   { id: "GOLD24", sourceKey: "gol24", source: "bonbast", name: "Gold Gram (24k)", emoji: "🥇", kind: "gold", aliases: ["geram24", "طلا۲۴"], channelList: false },
-  { id: "SILVER", sourceKey: "silver", source: "bonbast", name: "Silver Gram (999)", emoji: "🥈", kind: "gold", aliases: ["نقره", "noghre", "silver999"], channelList: false },
+  { id: "SILVER", sourceKey: "silver", source: "bonbast", name: "Silver Gram (999)", emoji: "🥈", kind: "gold", aliases: ["نقره", "noghre", "silver999"], channelList: true },
   { id: "XAG", sourceKey: "xag", source: "bonbast", name: "Silver Ounce (USD)", emoji: "⚪", kind: "gold", aliases: ["انس نقره", "انسنقره"], channelList: false },
   { id: "XPT", sourceKey: "platinum", source: "bonbast", name: "Platinum Ounce (USD)", emoji: "⬜", kind: "gold", aliases: ["پلاتین"], channelList: false },
 
@@ -118,9 +118,34 @@ export function allSymbolIds(): string[] {
   return SYMBOLS.map((s) => s.id);
 }
 
+const FA_LABEL: Record<string, string> = {
+  MITHQAL: "مثقال",
+  GOLD18: "گرم ۱۸",
+  OUNCE: "انس طلا",
+  GOLD24: "طلا ۲۴",
+  SILVER: "نقره",
+  XAG: "انس نقره",
+  XPT: "پلاتین",
+};
+
+/** Ounce quotes are dollars. The API `unit` string stays toman. */
+const DOLLAR_QUOTE = new Set(["OUNCE", "XAG", "XPT"]);
+
+export function displayName(def: SymbolDef, lang: "fa" | "en"): string {
+  if (lang === "fa") {
+    return FA_LABEL[def.id] ?? def.aliases.find((a) => /[\u0600-\u06FF]/.test(a)) ?? def.name;
+  }
+  return def.name;
+}
+
+export function quoteUnit(id: string, lang: "fa" | "en", fallback: string): string {
+  if (!DOLLAR_QUOTE.has(id)) return fallback;
+  return lang === "fa" ? "دلار" : "USD";
+}
+
 /** Hub / empty-search defaults */
 export function popularSymbols(): SymbolDef[] {
-  const want = ["USD", "USDT", "EUR", "GOLD18", "EMAMI", "GBP", "TRY", "AZADI"];
+  const want = ["USD", "USDT", "EUR", "GOLD18", "SILVER", "EMAMI", "GBP", "TRY", "AZADI"];
   const out: SymbolDef[] = [];
   for (const id of want) {
     const s = byId.get(id);

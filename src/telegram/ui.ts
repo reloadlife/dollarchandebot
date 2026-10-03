@@ -6,8 +6,7 @@
 import type { Env } from "../env";
 import type { Lang } from "../db/settings";
 import type { AlertRow } from "../db/alerts";
-import type { SymbolDef, SymbolKind } from "../symbols";
-import { symbolsByKind } from "../symbols";
+import { displayName, resolveSymbol, symbolsByKind, type SymbolDef, type SymbolKind } from "../symbols";
 import { getAllLatest } from "../db/prices";
 import { t } from "../lib/i18n";
 import { escapeHtml, formatPrice } from "../lib/format";
@@ -99,7 +98,7 @@ export function homeKeyboard(
   lang: Lang,
   quotes?: Map<string, { price: number }>,
 ): InlineKeyboard {
-  const named = (key: "homeUsd" | "homeUsdt" | "homeGold" | "homeCoin", id: string) => {
+  const named = (key: "homeUsd" | "homeUsdt" | "homeGold" | "homeSilver" | "homeCoin", id: string) => {
     const price = quotes?.get(id)?.price;
     const name = t(lang, key);
     return price == null ? name : `${name} ${formatPrice(price)}`;
@@ -112,8 +111,9 @@ export function homeKeyboard(
       ],
       [
         btn(named("homeGold", "GOLD18"), "s:GOLD18", undefined, "high"),
-        btn(named("homeCoin", "EMAMI"), "s:EMAMI", undefined, "sparkle"),
+        btn(named("homeSilver", "SILVER"), "s:SILVER", undefined, "flat"),
       ],
+      [btn(named("homeCoin", "EMAMI"), "s:EMAMI", undefined, "sparkle")],
       [
         btn(t(lang, "uiExchanges"), "x", undefined, "chart"),
         btn(t(lang, "uiAlerts"), "a", undefined, "clock"),
@@ -168,7 +168,7 @@ export function symbolListKeyboard(
   const slice = all.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE);
 
   const rows: InlineBtn[][] = chunk(
-    slice.map((s) => btn(`${s.emoji} ${s.id}`, `s:${s.id}`)),
+    slice.map((s) => btn(`${s.emoji} ${displayName(s, lang)}`, `s:${s.id}`)),
     COLS,
   );
 
@@ -240,7 +240,7 @@ export function alertsKeyboard(lang: Lang, rows: AlertRow[]): InlineKeyboard {
   const kb: InlineBtn[][] = [];
   for (const a of rows.slice(0, 10)) {
     const mode = a.mode === "repeat" ? "every" : "once";
-    const label = `#${a.id} ${a.symbol} ${a.direction} ${a.threshold}`.slice(
+    const label = `#${a.id} ${symbolLabel(lang, a.symbol)} ${a.direction} ${a.threshold}`.slice(
       0,
       40,
     );
@@ -296,6 +296,11 @@ export function menuOnlyKeyboard(lang: Lang): InlineKeyboard {
 }
 
 // —— HTML screens ——
+
+function symbolLabel(lang: Lang, id: string): string {
+  const def = resolveSymbol(id);
+  return def ? displayName(def, lang) : id;
+}
 
 function kindLabel(lang: Lang, kind: SymbolKind): string {
   switch (kind) {
@@ -421,7 +426,7 @@ export function screenAlerts(lang: Lang, rows: AlertRow[]): Screen {
             ? t(lang, "dirMove")
             : t(lang, "dirAbove");
       const thr = a.direction === "move_pct" ? `${a.threshold}%` : String(a.threshold);
-      return `<p>#${a.id} <code>${escapeHtml(a.symbol)}</code> ${escapeHtml(dir)} ${escapeHtml(thr)} · <i>${escapeHtml(mode)}</i></p>`;
+      return `<p>#${a.id} ${escapeHtml(symbolLabel(lang, a.symbol))} <code>${escapeHtml(a.symbol)}</code> ${escapeHtml(dir)} ${escapeHtml(thr)} · <i>${escapeHtml(mode)}</i></p>`;
     })
     .join("\n");
   const html = `<h2>🔔 ${escapeHtml(t(lang, "alertsTitle"))}</h2>
@@ -433,9 +438,9 @@ ${body}
 export function screenAlertDirection(lang: Lang, symbolId: string): Screen {
   const html =
     lang === "fa"
-      ? `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+      ? `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
 <p>کدام شرط؟</p>`
-      : `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+      : `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
 <p>Which condition?</p>`;
   return {
     html: html.trim(),
@@ -464,7 +469,7 @@ export function screenAlertAmount(
         ? t(lang, "dirMove")
         : t(lang, "dirAbove");
   const ask = direction === "move_pct" ? t(lang, "alertAskPct") : t(lang, "alertAskPrice");
-  const html = `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+  const html = `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
 <p>${escapeHtml(dir)}</p>
 <p>${ask}</p>`;
   return {
@@ -491,7 +496,7 @@ export function screenAlertMode(
         ? t(lang, "dirMove")
         : t(lang, "dirAbove");
   const thr = direction === "move_pct" ? `${threshold}%` : String(threshold);
-  const html = `<h2>🔔 ${escapeHtml(symbolId)}</h2>
+  const html = `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
 <p>${escapeHtml(dir)} <b>${escapeHtml(thr)}</b></p>
 <p>${t(lang, "alertPickMode")}</p>`;
   return {

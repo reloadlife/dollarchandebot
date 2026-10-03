@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import type { Env } from "../env";
-import type { SymbolDef } from "../symbols";
+import { SYMBOLS, type SymbolDef } from "../symbols";
 import type { LatestRow } from "../db/prices";
-import { richCompare, richExchanges, richHelp, richHistory, richHome, richSymbolPrice } from "./rich";
+import { richCompare, richExchanges, richHelp, richHistory, richHome, richMulti, richSymbolPrice, richSymbols } from "./rich";
 
 const env = {
   CHANNEL_USERNAME: "AlanDollarChande",
@@ -60,6 +60,19 @@ test("persian symbol card uses toman labels and the selected range", () => {
   expect(html).not.toContain("IRT");
 });
 
+test("silver card is نقره in toman and the ounce card is dollars", () => {
+  const silver = SYMBOLS.find((s) => s.id === "SILVER")!;
+  const xag = SYMBOLS.find((s) => s.id === "XAG")!;
+  const silverHtml = richSymbolPrice(env, silver, { ...row, symbol: "SILVER", price: 522820 }, undefined, null, null, "fa");
+  const ounceHtml = richSymbolPrice(env, xag, { ...row, symbol: "XAG", price: 60 }, undefined, null, null, "fa");
+  expect(silverHtml).toContain("نقره");
+  expect(silverHtml).toContain("تومان");
+  expect(silverHtml).not.toContain("Silver Gram");
+  expect(ounceHtml).toContain("انس نقره");
+  expect(ounceHtml).toContain("دلار");
+  expect(ounceHtml).not.toContain("تومان");
+});
+
 test("english symbol card keeps english book labels and a 24h caption", () => {
   const html = richSymbolPrice(env, usd, row, "https://example.test/c.png", null, null, "en", "24h");
   expect(html).toContain("Toman");
@@ -91,7 +104,7 @@ test("exchange and history cards follow the chat language", () => {
   expect(hist).not.toContain(">O <");
 });
 
-test("home shows four prices and help hides the command list", () => {
+test("home shows the main prices and help hides the command list", () => {
   const quotes = new Map([
     ["USD", { price: 178850, prev_price: 178000 }],
     ["USDT", { price: 179000, prev_price: 179000 }],
@@ -100,6 +113,7 @@ test("home shows four prices and help hides the command list", () => {
   expect(home).toContain("دلار");
   expect(home).toContain("178,850");
   expect(home).toContain("سکه");
+  expect(home).toContain("نقره");
   expect(home).not.toContain("جستجو · مرور");
 
   const help = richHelp(env, "fa");
@@ -134,4 +148,29 @@ test("compare uses the chat unit", () => {
   );
   expect(html).toContain("تومان");
   expect(html).toContain("اختلاف");
+  expect(html).toContain("دلار");
+});
+
+test("ounce history and a mixed snapshot keep dollars off the toman gram", () => {
+  const hist = richHistory(
+    env,
+    "XAG",
+    "⚪",
+    [{ day: "2026-10-02", open: 58, high: 61, low: 57, close: 60 }],
+    "fa",
+  );
+  expect(hist).toContain("انس نقره");
+  expect(hist).toContain("دلار");
+  expect(hist).not.toContain("تومان");
+
+  const snap = richMulti(env, [{ id: "SILVER", emoji: "🥈", price: 522820 }, { id: "XAG", emoji: "⚪", price: 60 }], "fa");
+  expect(snap).toContain("نقره");
+  expect(snap).toContain("تومان");
+  expect(snap).toContain("انس نقره");
+  expect(snap).toContain("دلار");
+
+  const list = richSymbols("fa");
+  expect(list).toContain("طلا و نقره");
+  expect(list).toContain("نقره");
+  expect(list).not.toContain("Silver Gram");
 });

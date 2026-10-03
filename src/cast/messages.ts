@@ -163,11 +163,12 @@ const BOARD: Array<{ id: string; label: string }> = [
   { id: "USDT", label: "تتر" },
   { id: "MITHQAL", label: "مثقال" },
   { id: "GOLD18", label: "گرم ۱۸" },
+  { id: "SILVER", label: "نقره" },
   { id: "EMAMI", label: "امامی" },
 ];
 
 /**
- * One channel board: six prices, the rest tucked away, tether as a line.
+ * One channel board: the main prices, the rest tucked away, tether as a line.
  */
 export async function buildPriceListHtml(env: Env): Promise<string> {
   const [rows, exchanges] = await Promise.all([

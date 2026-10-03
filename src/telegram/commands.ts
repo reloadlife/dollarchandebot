@@ -53,11 +53,11 @@ export const GROUP_COMMANDS_FA: BotCommand[] = [
   { command: "help", description: "❓ راهنما" },
 ];
 
-const SHORT_EN = "Free-market FX, gold & USDT · charts · calc";
-const SHORT_FA = "نرخ آزاد ارز، طلا و تتر · نمودار · ماشین‌حساب";
+const SHORT_EN = "Free-market FX, gold, silver & USDT · charts · calc";
+const SHORT_FA = "نرخ آزاد ارز، طلا، نقره و تتر · نمودار · ماشین‌حساب";
 
 const DESC_EN = [
-  "Live Iranian free-market rates (Toman).",
+  "Live Iranian free-market rates: FX, gold, silver, and USDT (Toman).",
   "",
   "• Send USD or $USDT for price + 24h chart",
   "• Calculator: 10 USDT + 5 EUR",
@@ -68,7 +68,7 @@ const DESC_EN = [
 ].join("\n");
 
 const DESC_FA = [
-  "نرخ زنده بازار آزاد (تومان).",
+  "نرخ زنده بازار آزاد: ارز، طلا، نقره و تتر (تومان).",
   "",
   "• بفرست USD یا $USDT → قیمت + نمودار ۲۴س",
   "• ماشین‌حساب: 10 USDT + 5 EUR",
@@ -79,7 +79,7 @@ const DESC_FA = [
 ].join("\n");
 
 /** Bump when the command list changes so the next cron calls setMyCommands. */
-export const BOT_MENU_VER = "2026-09-29-icons";
+export const BOT_MENU_VER = "2026-10-02-silver";
 export const BOT_MENU_KV = "bot:menu_ver";
 
 /** language_code for setMyCommands / descriptions. Empty = default (fallback). */

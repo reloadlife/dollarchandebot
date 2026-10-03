@@ -7,15 +7,16 @@ import { scrapeTgju } from "./scrape/tgju";
 import { scrapeAlanchand } from "./scrape/alanchand";
 import { fillMissing, type BoardQuote } from "./scrape/board";
 import { configureProxy, proxyConfigured } from "./lib/proxy";
-import { ingestScrapes, getLatest, type TetherSource } from "./db/prices";
+import { ingestScrapes, getAllLatest, type TetherSource } from "./db/prices";
 import { saveExchangeQuotes } from "./db/exchanges";
 import { checkAlerts } from "./db/alerts";
 import { getSettings } from "./db/settings";
 import { cast6hCharts, castDaily, castPriceList } from "./cast/messages";
 import { runGroupFeeds } from "./group/feeds";
 import { sendMessage } from "./telegram/api";
-import { formatPrice } from "./lib/format";
+import { escapeHtml, formatPrice } from "./lib/format";
 import { t } from "./lib/i18n";
+import { displayName, quoteUnit, resolveSymbol } from "./symbols";
 
 /** Channel list interval (ms). Scrape is every 5m; list posts every 10m. */
 const LIST_CAST_EVERY_MS = 10 * 60 * 1000;
@@ -188,13 +189,8 @@ export async function runScrape(env: Env): Promise<number> {
 }
 
 async function fireAlerts(env: Env): Promise<void> {
-  const want = ["USD", "USDT", "EUR", "GOLD18", "EMAMI"];
-  const prices = new Map<string, number>();
-  for (const id of want) {
-    const row = await getLatest(env.DB, id);
-    if (row) prices.set(id, row.price);
-  }
-  // also any alert symbols
+  const rows = await getAllLatest(env.DB);
+  const prices = new Map(rows.map((row) => [row.symbol, row.price]));
   const fired = await checkAlerts(env.DB, prices);
   for (const a of fired) {
     const lang = (await getSettings(env.DB, a.chat_id)).lang;
@@ -206,10 +202,13 @@ async function fireAlerts(env: Env): Promise<void> {
           : `${t(lang, "dirMove")} ≥ ${a.threshold}%`;
     const modeNote =
       a.mode === "once" ? t(lang, "alertOnceNote") : t(lang, "alertRepeatNote");
+    const def = resolveSymbol(a.symbol);
+    const name = escapeHtml(def ? displayName(def, lang) : a.symbol);
+    const unit = escapeHtml(quoteUnit(a.symbol, lang, t(lang, "cardUnit")));
     await sendMessage(
       env,
       a.chat_id,
-      `🔔 <b>${t(lang, "alertFired")} #${a.id}</b> <code>${a.symbol}</code>\n${t(lang, "alertPrice")} <b>${formatPrice(a.price)}</b> ${t(lang, "cardUnit")} (${dir})\n<i>${modeNote}</i>`,
+      `🔔 <b>${t(lang, "alertFired")} #${a.id}</b> ${name}\n${t(lang, "alertPrice")} <b>${formatPrice(a.price)}</b> ${unit} (${dir})\n<i>${modeNote}</i>`,
     ).catch((e) => console.error("alert send", e));
   }
 }

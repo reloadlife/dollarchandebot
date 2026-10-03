@@ -4,7 +4,7 @@
  */
 
 import type { Env } from "../env";
-import type { SymbolDef } from "../symbols";
+import { displayName, quoteUnit, resolveSymbol, type SymbolDef } from "../symbols";
 import { SYMBOLS } from "../symbols";
 import type { LatestRow } from "../db/prices";
 import type { CalcResult } from "../lib/calc";
@@ -62,14 +62,15 @@ function fmtAmt(n: number): string {
   return String(Number(n.toPrecision(12)));
 }
 
-const HOME_QUOTES: Array<{ id: string; key: "homeUsd" | "homeUsdt" | "homeGold" | "homeCoin" }> = [
+const HOME_QUOTES: Array<{ id: string; key: "homeUsd" | "homeUsdt" | "homeGold" | "homeSilver" | "homeCoin" }> = [
   { id: "USD", key: "homeUsd" },
   { id: "USDT", key: "homeUsdt" },
   { id: "GOLD18", key: "homeGold" },
+  { id: "SILVER", key: "homeSilver" },
   { id: "EMAMI", key: "homeCoin" },
 ];
 
-/** Home is the four prices people open the bot for. */
+/** Home is the prices people open the bot for. */
 export function richHome(
   env: Env,
   lang: Lang,
@@ -216,13 +217,13 @@ export function richSymbols(lang: Lang = "en"): string {
   const labelsEn: Record<string, string> = {
     fx: "💱 Currencies",
     crypto: "💰 Crypto",
-    gold: "🥇 Gold",
+    gold: "🥇 Gold & silver",
     coin: "🪙 Coins",
   };
   const labelsFa: Record<string, string> = {
     fx: "💱 ارزها",
     crypto: "💰 کریپتو",
-    gold: "🥇 طلا",
+    gold: "🥇 طلا و نقره",
     coin: "🪙 سکه",
   };
   const labels = lang === "fa" ? labelsFa : labelsEn;
@@ -241,7 +242,7 @@ export function richSymbols(lang: Lang = "en"): string {
     parts.push("<ul>");
     for (const s of group) {
       parts.push(
-        `<li>${s.emoji} <code>${s.id}</code> — ${escapeHtml(s.name)}</li>`,
+        `<li>${s.emoji} <code>${s.id}</code> — ${escapeHtml(displayName(s, lang))}</li>`,
       );
     }
     parts.push("</ul>");
@@ -434,6 +435,14 @@ ${book}
 `.trim();
 }
 
+function namedQuote(id: string, lang: Lang, fallbackName: string): { title: string; unit: string } {
+  const def = resolveSymbol(id);
+  return {
+    title: def ? displayName(def, lang) : fallbackName,
+    unit: quoteUnit(id, lang, t(lang, "cardUnit")),
+  };
+}
+
 export function richCompare(
   env: Env,
   a: { id: string; name: string; emoji: string; price: number },
@@ -444,21 +453,23 @@ export function richCompare(
   const spread = a.price - b.price;
   const spreadPct = b.price > 0 ? (spread / b.price) * 100 : 0;
   const sign = spread >= 0 ? "+" : "";
-  const unit = escapeHtml(t(lang, "cardUnit"));
+  const left = namedQuote(a.id, lang, a.name);
+  const right = namedQuote(b.id, lang, b.name);
+  const spreadUnit = left.unit === right.unit ? ` ${escapeHtml(left.unit)}` : "";
   const table = compactTable([
     [
-      { text: `${a.emoji} $${a.id}` },
-      { text: `${formatPrice(a.price)} ${unit}`, align: "right", bold: true },
+      { text: `${a.emoji} ${escapeHtml(left.title)}` },
+      { text: `${formatPrice(a.price)} ${escapeHtml(left.unit)}`, align: "right", bold: true },
     ],
     [
-      { text: `${b.emoji} $${b.id}` },
-      { text: `${formatPrice(b.price)} ${unit}`, align: "right", bold: true },
+      { text: `${b.emoji} ${escapeHtml(right.title)}` },
+      { text: `${formatPrice(b.price)} ${escapeHtml(right.unit)}`, align: "right", bold: true },
     ],
   ]);
   return `
-<h2>${a.emoji} $${a.id} vs ${b.emoji} $${b.id}</h2>
+<h2>${a.emoji} ${escapeHtml(left.title)} vs ${b.emoji} ${escapeHtml(right.title)}</h2>
 ${table}
-<p>${escapeHtml(t(lang, "cmpSpread"))} <b>${sign}${formatPrice(spread)}</b> (${sign}${spreadPct.toFixed(2)}%)</p>
+<p>${escapeHtml(t(lang, "cmpSpread"))} <b>${sign}${formatPrice(spread)}</b>${spreadUnit} (${sign}${spreadPct.toFixed(2)}%)</p>
 <p>1 $${a.id} ≈ <b>${ratio.toFixed(4)}</b> $${b.id}</p>
 <p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
@@ -469,12 +480,14 @@ export function richMulti(
   rows: Array<{ id: string; emoji: string; price: number }>,
   lang: Lang = "en",
 ): string {
-  const unit = escapeHtml(t(lang, "cardUnit"));
   const body = compactTable(
-    rows.map((r) => [
-      { text: `${r.emoji} $${r.id}` },
-      { text: `${formatPrice(r.price)} ${unit}`, align: "right" as const, bold: true },
-    ]),
+    rows.map((r) => {
+      const named = namedQuote(r.id, lang, r.id);
+      return [
+        { text: `${r.emoji} ${escapeHtml(named.title)}` },
+        { text: `${formatPrice(r.price)} ${escapeHtml(named.unit)}`, align: "right" as const, bold: true },
+      ];
+    }),
   );
   return `
 <h2>${em("sparkle")} ${escapeHtml(t(lang, "snapTitle"))}</h2>
@@ -490,6 +503,7 @@ export function richHistory(
   days: Array<{ day: string; open: number; high: number; low: number; close: number }>,
   lang: Lang = "en",
 ): string {
+  const named = namedQuote(id, lang, id);
   const head = (key: "ohlcOpen" | "ohlcHigh" | "ohlcLow" | "ohlcClose"): TableCell => ({
     text: escapeHtml(t(lang, key)),
     header: true,
@@ -514,9 +528,9 @@ export function richHistory(
       ])
     : `<p>${escapeHtml(t(lang, "histEmpty"))}</p>`;
   return `
-<h2>${emoji} $${id} ${escapeHtml(t(lang, "histTitle"))}</h2>
+<h2>${emoji} ${escapeHtml(named.title)} ${escapeHtml(t(lang, "histTitle"))}</h2>
 ${lines}
-<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+<p>${escapeHtml(named.unit)} · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
@@ -527,8 +541,9 @@ export function richOhlc(
   d: { day: string; open: number; high: number; low: number; close: number } | null,
   lang: Lang = "en",
 ): string {
+  const named = namedQuote(id, lang, id);
   if (!d) {
-    return `<h2>${emoji} $${id}</h2><p>${escapeHtml(t(lang, "ohlcEmpty"))}</p>`;
+    return `<h2>${emoji} ${escapeHtml(named.title)}</h2><p>${escapeHtml(named.unit)} · ${escapeHtml(t(lang, "ohlcEmpty"))}</p>`;
   }
   const bar = compactTable([
     [
@@ -549,9 +564,9 @@ export function richOhlc(
     ],
   ]);
   return `
-<h2>${emoji} $${id} · ${escapeHtml(d.day)}</h2>
+<h2>${emoji} ${escapeHtml(named.title)} · ${escapeHtml(d.day)}</h2>
 ${bar}
-<p>${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
+<p>${escapeHtml(named.unit)} · ${em("channel")} <a href="${channelUrl(env)}">@${escapeHtml(env.CHANNEL_USERNAME)}</a></p>
 `.trim();
 }
 
@@ -585,7 +600,8 @@ export function richSymbolPrice(
   range: ChartRange = "24h",
   actions: "chat" | "link" = "chat",
 ): string {
-  const unit = escapeHtml(t(lang, "cardUnit"));
+  const unit = escapeHtml(quoteUnit(def.id, lang, t(lang, "cardUnit")));
+  const title = displayName(def, lang);
   // Bare $USD → native cashtag (entity detection on)
   const cash = `$${def.id}`;
   const channel = `@${escapeHtml(env.CHANNEL_USERNAME)}`;
@@ -593,7 +609,7 @@ export function richSymbolPrice(
 
   if (!row) {
     return `
-<h2>${def.emoji} ${escapeHtml(def.name)}</h2>
+<h2>${def.emoji} ${escapeHtml(title)}</h2>
 <p>${cash}</p>
 <p>${escapeHtml(t(lang, "cardNoData"))}</p>
 `.trim();
@@ -629,7 +645,7 @@ export function richSymbolPrice(
   const timeRel = `<tg-time unix="${row.updated_at}" format="r">${escapeHtml(whenAbs)}</tg-time>`;
 
   return `
-<h2>${def.emoji} ${escapeHtml(def.name)}</h2>
+<h2>${def.emoji} ${escapeHtml(title)}</h2>
 <p>${cash}</p>
 ${chartBlock}
 <p>${em("price")} <b>${formatPrice(row.price)}</b> ${unit}</p>

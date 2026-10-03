@@ -1,7 +1,7 @@
 import type { Env } from "../env";
 import { getAllLatest, getLatest } from "../db/prices";
 import { escapeHtml, formatPrice } from "../lib/format";
-import { resolveSymbol } from "../symbols";
+import { displayName, quoteUnit, resolveSymbol } from "../symbols";
 import { TelegramError, callTelegram, sendMessage, sendRichMessage } from "../telegram/api";
 
 /** Minimum gap is 15 minutes so a group cannot be spammed. */
@@ -11,6 +11,7 @@ const BOARD = [
   { id: "USD", fa: "دلار", en: "USD" },
   { id: "USDT", fa: "تتر", en: "USDT" },
   { id: "GOLD18", fa: "طلا", en: "Gold" },
+  { id: "SILVER", fa: "نقره", en: "Silver" },
   { id: "EMAMI", fa: "سکه", en: "Emami" },
 ] as const;
 
@@ -107,13 +108,15 @@ async function postHtml(env: Env, chatId: string, html: string): Promise<void> {
 }
 
 export async function buildFeedHtml(env: Env, symbol: string | null, fa: boolean): Promise<string> {
-  const unit = fa ? "تومان" : "Toman";
+  const lang = fa ? "fa" : "en";
+  const boardUnit = fa ? "تومان" : "Toman";
   if (symbol) {
     const row = await getLatest(env.DB, symbol);
     const def = resolveSymbol(symbol);
-    const name = fa ? (def?.aliases.find((a) => /[\u0600-\u06FF]/.test(a)) ?? def?.name ?? symbol) : (def?.name ?? symbol);
+    const name = def ? displayName(def, lang) : symbol;
+    const unit = quoteUnit(symbol, lang, boardUnit);
     const price = row ? formatPrice(row.price) : (fa ? "نیامده" : "waiting");
-    return `<h3>${escapeHtml(name)}</h3>\n<p><b>${price}</b> ${unit}</p>\n<p><a href="https://t.me/${escapeHtml(env.BOT_USERNAME)}?start=${escapeHtml(symbol)}">${fa ? "نمودار" : "Chart"}</a></p>`;
+    return `<h3>${escapeHtml(name)}</h3>\n<p><b>${price}</b> ${escapeHtml(unit)}</p>\n<p><a href="https://t.me/${escapeHtml(env.BOT_USERNAME)}?start=${escapeHtml(symbol)}">${fa ? "نمودار" : "Chart"}</a></p>`;
   }
   const rows = await getAllLatest(env.DB);
   const byId = new Map(rows.map((row) => [row.symbol, row.price]));
@@ -123,7 +126,7 @@ export async function buildFeedHtml(env: Env, symbol: string | null, fa: boolean
     return `<p><b>${name}</b> ${price == null ? (fa ? "نیامده" : "waiting") : formatPrice(price)}</p>`;
   }).join("\n");
   const title = fa ? "نرخ بازار آزاد" : "Free-market rates";
-  return `<h3>${title}</h3>\n${lines}\n<p>${unit}</p>`;
+  return `<h3>${title}</h3>\n${lines}\n<p>${boardUnit}</p>`;
 }
 
 export async function runGroupFeeds(env: Env, nowMs = Date.now()): Promise<number> {

@@ -1,6 +1,8 @@
 import type { Env } from "../env";
 import {
+  displayName,
   normalizeSymbolQuery,
+  quoteUnit,
   resolveSymbol,
   searchSymbols,
 } from "../symbols";
@@ -526,7 +528,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     await sendMessage(
       env,
       chatId,
-      `${t(settings.lang, "alertAdded")} #${id}\n<code>${def.id}</code> ${direction} ${thr} · ${modeLabel}`,
+      `${t(settings.lang, "alertAdded")} #${id}\n${escapeHtml(displayName(def, settings.lang))} <code>${def.id}</code> ${direction} ${thr} · ${modeLabel}`,
       packEphemeral(sendTarget.ephemeral, { reply_markup: menuOnlyKeyboard(settings.lang) }),
     );
     return;
@@ -599,7 +601,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
     const hits = searchSymbols(text, 5);
     if (hits.length) {
       const lines = hits
-        .map((s) => `• ${s.emoji} <code>${s.id}</code> — ${escapeHtml(s.name)}`)
+        .map((s) => `• ${s.emoji} <code>${s.id}</code> — ${escapeHtml(displayName(s, settings.lang))}`)
         .join("\n");
       await replyRich(
         env,
@@ -614,7 +616,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
             inline_keyboard: [
               ...chunk(
                 hits.map((s) => ({
-                  text: `${s.emoji} ${s.id}`,
+                  text: `${s.emoji} ${displayName(s, settings.lang)}`,
                   callback_data: `s:${s.id}`,
                 })),
                 3,
@@ -1055,7 +1057,7 @@ async function buildSymbolInlineResult(
     getDayHighLow(env.DB, def.id),
     getPrice24hAgo(env.DB, def.id),
   ]);
-  const unit = "IRT";
+  const unit = quoteUnit(def.id, lang, "IRT");
   const price = row ? formatPrice(row.price) : "—";
   const delta = row ? formatDelta(row.price, row.prev_price) : "n/a";
   const when = row ? formatTimeTehran(row.updated_at) : "—";
@@ -1071,8 +1073,8 @@ async function buildSymbolInlineResult(
   return {
     type: "article",
     id: def.id,
-    title: `${def.emoji} ${def.id} · ${price} ${unit}`,
-    description: `${def.name} · ${delta} · ${when}`,
+    title: `${def.emoji} ${displayName(def, lang)} · ${price} ${unit}`,
+    description: `${displayName(def, lang)} · ${delta} · ${when}`,
     input_message_content: {
       rich_message: {
         html: richHtml,
