@@ -393,6 +393,19 @@ export async function scrapeUbitex(): Promise<ExchangeQuote> {
   return quote("ubitex", "Ubitex", raw, raw, raw);
 }
 
+/**
+ * SwapWallet — the public coin page server-renders the buy side for 1 USDT.
+ * The sell tab is client-side and is not in the HTML. Their API wants a key.
+ */
+export async function scrapeSwapWallet(): Promise<ExchangeQuote> {
+  const html = await getTextHead("https://swapwallet.app/coins/USDT");
+  const amount = /aria-label="مقدار USDT"[^>]*value="([\d.]+)"/.exec(html);
+  if (amount && amount[1] !== "1") throw new Error("swapwallet: amount is not 1 USDT");
+  const m = /aria-label="مبلغ به تومان"[^>]*value="([\d,]+)"/.exec(html);
+  if (!m?.[1]) throw new Error("swapwallet: no toman buy price");
+  return quote("swapwallet", "SwapWallet", m[1], null);
+}
+
 /** Arzplus — same story, but the markup is semantic and stable. */
 export async function scrapeArzplus(): Promise<ExchangeQuote> {
   const html = await getText("https://arzplus.net/");
@@ -410,7 +423,7 @@ type Scraper = () => Promise<ExchangeQuote>;
 
 /**
  * Every scraper with one working public URL. Fail-soft; order does not matter.
- * SwapWallet wants an API key. Poulyar and Iranicard publish no keyless tether price.
+ * Poulyar and Iranicard still have no confirmed public tether price.
  */
 const SCRAPERS: Array<{ id: string; run: Scraper }> = [
   { id: "tetherland", run: scrapeTetherlandExchange },
@@ -429,6 +442,7 @@ const SCRAPERS: Array<{ id: string; run: Scraper }> = [
   { id: "ubitex", run: scrapeUbitex },
   { id: "bitbarg", run: scrapeBitbarg },
   { id: "arzplus", run: scrapeArzplus },
+  { id: "swapwallet", run: scrapeSwapWallet },
 ];
 
 export function listScraperIds(): string[] {

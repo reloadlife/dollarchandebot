@@ -35,7 +35,7 @@ test("tgju rejects an out-of-range quote instead of publishing it", async () => 
   }
 });
 
-import { scrapeUbitex, scrapeArzplus } from "./scrape/exchanges";
+import { scrapeUbitex, scrapeArzplus, scrapeSwapWallet } from "./scrape/exchanges";
 
 function stubHtml(html: string) {
   const orig = globalThis.fetch;
@@ -52,6 +52,22 @@ test("ubitex price is read from the row anchored on the USDT icon", async () => 
   );
   try {
     expect((await scrapeUbitex()).mid).toBe(197985);
+  } finally {
+    restore();
+  }
+});
+
+test("swapwallet reads the buy side for 1 USDT", async () => {
+  const restore = stubHtml(
+    '<input aria-label="مقدار USDT" value="1"/>' +
+      '<input class="bconv-input" aria-label="مبلغ به تومان" value="264,544"/>',
+  );
+  try {
+    const q = await scrapeSwapWallet();
+    expect(q.exchange).toBe("swapwallet");
+    expect(q.buy).toBe(264544);
+    expect(q.mid).toBe(264544);
+    expect(q.sell).toBe(264544);
   } finally {
     restore();
   }
