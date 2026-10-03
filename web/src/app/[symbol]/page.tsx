@@ -85,9 +85,8 @@ export default async function SymbolPage({
           تابلو
         </Link>
       </div>
-      <div className="mt-4">
-        <CopyBlock text={pageUrl} label="کپی لینک" caption="برای فرستادن" />
-      </div>
+      <p className="mb-2 mt-8 text-sm text-foreground/70">برای فرستادن</p>
+      <CopyBlock text={pageUrl} label="کپی لینک" caption={path} />
     </main>
   );
 }
