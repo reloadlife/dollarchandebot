@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { intervalLabel, parseEvery } from "./feeds";
+import { intervalLabel, parseEvery, parseFeedStart } from "./feeds";
 
 test("parseEvery accepts the allowed gaps and an optional symbol", () => {
   expect(parseEvery("1h")).toEqual({ ok: true, off: false, everyMin: 60, symbol: null });
@@ -10,6 +10,13 @@ test("parseEvery accepts the allowed gaps and an optional symbol", () => {
   expect(parseEvery("5m").ok).toBe(false);
   expect(parseEvery("1h NOPE").ok).toBe(false);
   expect(parseEvery("")).toEqual({ ok: false, reason: "usage" });
+});
+
+test("feed deep link is the hourly group post", () => {
+  expect(parseFeedStart("feed")).toEqual({ symbol: null });
+  expect(parseFeedStart("feed_usd")).toEqual({ symbol: "USD" });
+  expect(parseFeedStart("feed_nope")).toBeNull();
+  expect(parseFeedStart("USD")).toBeNull();
 });
 
 test("interval labels stay short", () => {

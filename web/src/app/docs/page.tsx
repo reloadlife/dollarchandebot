@@ -130,7 +130,7 @@ export default function DocsPage() {
             <p className="mt-4 text-sm leading-7 text-foreground/75">
               در قالب می‌توانی <span className="font-mono" dir="ltr">{"dollarchande_rate('USD')"}</span> را صدا بزنی. اگر نرخ نرسد، null برمی‌گردد.
             </p>
-            <a href="/downloads/dollarchande-wordpress.zip" className="mt-4 inline-flex text-sm font-semibold text-brand">
+            <a href="https://api.dollarchande.live/dl/wordpress" className="mt-4 inline-flex text-sm font-semibold text-brand">
               دریافت وردپرس
             </a>
           </section>
@@ -152,7 +152,7 @@ export default function DocsPage() {
             <p className="mt-4 text-sm leading-7 text-foreground/75">
               هر ساعت یک دور اجرا می‌شود. دکمه «همگام‌سازی الان» همان کار را همان لحظه می‌کند. گام ۱۰۰۰ یعنی قیمت به هزار گرد می‌شود.
             </p>
-            <a href="/downloads/dollarchande-woocommerce.zip" className="mt-4 inline-flex text-sm font-semibold text-brand">
+            <a href="https://api.dollarchande.live/dl/woocommerce" className="mt-4 inline-flex text-sm font-semibold text-brand">
               دریافت ووکامرس
             </a>
           </section>
@@ -169,7 +169,7 @@ export default function DocsPage() {
             <p className="mt-4 text-sm leading-7 text-foreground/75">
               فعال‌سازی ستون rate را به DECIMAL(18,8) پهن می‌کند تا نرخ تومان جا شود. خاموش کردن جدول و نرخ را پاک نمی‌کند. کران سیستم حدود هر ساعت یک بار می‌نویسد. از خود افزونه هم می‌توانی «Update now» را بزنی.
             </p>
-            <a href="/downloads/dollarchande-whmcs.zip" className="mt-4 inline-flex text-sm font-semibold text-brand">
+            <a href="https://api.dollarchande.live/dl/whmcs" className="mt-4 inline-flex text-sm font-semibold text-brand">
               دریافت WHMCS
             </a>
           </section>

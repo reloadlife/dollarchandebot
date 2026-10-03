@@ -6,7 +6,7 @@
 
 ## وردپرس
 
-https://dollarchande.live/downloads/dollarchande-wordpress.zip
+https://api.dollarchande.live/dl/wordpress
 
 1. فایل فشرده را از پیشخوان بارگذاری کن، یا پوشه `dollarchande` را در `wp-content/plugins` بگذار.
 2. افزونه را فعال کن.
@@ -17,7 +17,7 @@ https://dollarchande.live/downloads/dollarchande-wordpress.zip
 
 ## ووکامرس
 
-https://dollarchande.live/downloads/dollarchande-woocommerce.zip
+https://api.dollarchande.live/dl/woocommerce
 
 ووکامرس باید نصب باشد. قیمت = پایه × نرخ × ضریب، گردشده به گام. برای تومان ضریب ۱ است و برای ریال ضریب ۱۰. گام ۱۰۰۰ یعنی گرد به هزار. قیمت حراج دست نمی‌خورد. کالای متغیر را روی هر متغیر جدا روشن کن.
 
@@ -29,7 +29,7 @@ https://dollarchande.live/downloads/dollarchande-woocommerce.zip
 
 ## WHMCS
 
-https://dollarchande.live/downloads/dollarchande-whmcs.zip
+https://api.dollarchande.live/dl/whmcs
 
 1. پوشه `dollarchande` را در `modules/addons` بگذار.
 2. از Configuration، Addon Modules، دلارچنده را فعال کن.

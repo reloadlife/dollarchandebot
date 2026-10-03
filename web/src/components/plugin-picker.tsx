@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { GlowFrame } from "@/components/page-wash";
+import { PLUGIN_ZIP } from "@/lib/rates";
 import { fa } from "@/lib/utils";
 
 const PLUGINS = [
@@ -9,7 +10,7 @@ const PLUGINS = [
     id: "woo",
     title: "ووکامرس",
     action: "دریافت ووکامرس",
-    href: "/downloads/dollarchande-woocommerce.zip",
+    href: PLUGIN_ZIP.woocommerce,
     body: "قیمت پایه کالا را به دلار بنویس. هر ساعت، قیمت تومان از همین نرخ ساخته می‌شود.",
     detail: "قیمت = پایه × نرخ × ضریب",
     code: false,
@@ -23,7 +24,7 @@ const PLUGINS = [
     id: "wp",
     title: "وردپرس",
     action: "دریافت وردپرس",
-    href: "/downloads/dollarchande-wordpress.zip",
+    href: PLUGIN_ZIP.wordpress,
     body: "نرخ را داخل برگه و نوشته نشان می‌دهد.",
     detail: '[dollarchande symbol="USD"]',
     code: true,
@@ -37,7 +38,7 @@ const PLUGINS = [
     id: "whmcs",
     title: "WHMCS",
     action: "دریافت WHMCS",
-    href: "/downloads/dollarchande-whmcs.zip",
+    href: PLUGIN_ZIP.whmcs,
     body: "اگر کران روشن باشد، حدود هر ساعت نرخ ارز را می‌نویسد.",
     detail: "modules/addons/dollarchande",
     code: true,

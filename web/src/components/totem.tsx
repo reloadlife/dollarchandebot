@@ -7,11 +7,6 @@ import { SegmentReadout } from "@/components/segments";
 import { fetchLatest, quoteLabel, type Quote } from "@/lib/rates";
 import { fa } from "@/lib/utils";
 
-const STACK = [
-  { id: "USDT", digits: 6 },
-  { id: "GOLD18", digits: 8 },
-] as const;
-
 function tehranClock(unix: number): string {
   const ms = unix < 1e12 ? unix * 1000 : unix;
   return new Intl.DateTimeFormat("en-GB", {
@@ -99,34 +94,6 @@ export function Totem() {
             </button>
           </p>
         ) : null}
-        <div className="totem-rule mt-6 flex flex-col gap-5 pt-5">
-          {STACK.map((row) => {
-            const q = byId(row.id);
-            const price = q?.price != null ? String(Math.round(q.price)) : "";
-            const name = q ? quoteLabel(q) : row.id;
-            return (
-              <div key={row.id}>
-                <p className="totem-dim mb-2 text-sm">
-                  {name}
-                  {name !== row.id ? (
-                    <>
-                      {" "}
-                      <span dir="ltr">{row.id}</span>
-                    </>
-                  ) : null}
-                </p>
-                <Freshness updatedAt={q?.updated_at} failed={failed} />
-                <Readout
-                  value={price}
-                  label={price ? `${price} تومان` : row.id}
-                  mobile={34}
-                  desktop={44}
-                  digits={row.digits}
-                />
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

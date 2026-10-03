@@ -58,6 +58,7 @@ import { getSettings, setFeePct, setLang, type Lang } from "../db/settings";
 import { rateLimit } from "../lib/ratelimit";
 import { t } from "../lib/i18n";
 import {
+  crossThreshold,
   decodePending,
   encodePending,
   parseAlertAmount,
@@ -69,17 +70,21 @@ import { isGroupChat, packEphemeral } from "./ephemeral";
 import {
   buildFeedHtml,
   deleteGroupFeed,
+  hasGroupFeed,
   intervalLabel,
   isChatAdmin,
   parseEvery,
+  parseFeedStart,
   saveGroupFeed,
 } from "../group/feeds";
+import { bumpUsage, formatUsage, usageReport } from "../db/usage";
 import { publishBotMenu } from "./commands";
 
 import {
   menuOnlyKeyboard,
   parseCallback,
   screenAlertAmount,
+  screenAlertCross,
   screenAlertDirection,
   screenAlertHelp,
   screenAlertMode,
@@ -168,7 +173,7 @@ async function handleEvery(
     return;
   }
   const nowSec = Math.floor(Date.now() / 1000);
-  await saveGroupFeed(env, String(chatId), parsed.everyMin, parsed.symbol, nowSec);
+  await storeGroupFeed(env, chatId, parsed.everyMin, parsed.symbol, nowSec);
   const html = await buildFeedHtml(env, parsed.symbol, true);
   try {
     await sendRichMessage(env, chatId, html, { disable_notification: true });
@@ -181,6 +186,95 @@ async function handleEvery(
     chatId,
     `${t(lang, "everySet")}\n${intervalLabel(parsed.everyMin, fa)} · ${escapeHtml(what)}`,
   );
+}
+
+/** Count a group the first time it asks for a feed. Later edits of the same group do not count again. */
+async function storeGroupFeed(
+  env: Env,
+  chatId: string | number,
+  everyMin: number,
+  symbol: string | null,
+  nowSec: number,
+): Promise<void> {
+  const id = String(chatId);
+  const fresh = !(await hasGroupFeed(env, id));
+  await saveGroupFeed(env, id, everyMin, symbol, nowSec);
+  if (fresh) await bumpUsage(env.DB, "feed").catch((e) => console.error("usage feed", e));
+}
+
+/** Hourly group post from the price screen. Private chats are told to add the bot to a group. */
+async function handleFeedStart(
+  env: Env,
+  chatId: number,
+  msg: TgMessage,
+  lang: Lang,
+  symbol: string | null,
+): Promise<void> {
+  if (!isGroupChat(msg.chat.type)) {
+    await sendMessage(env, chatId, t(lang, "everyPrivate"));
+    return;
+  }
+  const userId = msg.from?.id;
+  if (userId == null || !(await isChatAdmin(env, chatId, userId))) {
+    await sendMessage(env, chatId, t(lang, "everyNeedAdmin"));
+    return;
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  await storeGroupFeed(env, chatId, 60, symbol, nowSec);
+  const html = await buildFeedHtml(env, symbol, true);
+  try {
+    await sendRichMessage(env, chatId, html, { disable_notification: true });
+  } catch (e) {
+    console.error("group feed first post", e);
+  }
+  const fa = lang === "fa";
+  const what = symbol ?? (fa ? "تابلو" : "board");
+  await sendMessage(
+    env,
+    chatId,
+    `${t(lang, "everySet")}\n${intervalLabel(60, fa)} · ${escapeHtml(what)}`,
+  );
+}
+
+async function handleStats(
+  env: Env,
+  chatId: number,
+  msg: TgMessage,
+  lang: Lang,
+): Promise<void> {
+  const quiet = packEphemeral(
+    isGroupChat(msg.chat.type) && msg.ephemeral_message_id && msg.from
+      ? { receiverUserId: msg.from.id, ephemeralMessageId: msg.ephemeral_message_id }
+      : undefined,
+  );
+  if (msg.chat.type !== "private") {
+    await sendMessage(env, chatId, t(lang, "statsPrivate"), quiet);
+    return;
+  }
+  const userId = msg.from?.id;
+  if (!userId || !env.TELEGRAM_CHANNEL_ID) {
+    await sendMessage(env, chatId, t(lang, "setCommandsDenied"), quiet);
+    return;
+  }
+  let admin = false;
+  try {
+    admin = await isChatAdmin(env, env.TELEGRAM_CHANNEL_ID, userId);
+  } catch (e) {
+    console.error("stats admin", e);
+    await sendMessage(env, chatId, t(lang, "setCommandsFail"), quiet);
+    return;
+  }
+  if (!admin) {
+    await sendMessage(env, chatId, t(lang, "setCommandsDenied"), quiet);
+    return;
+  }
+  try {
+    const report = await usageReport(env.DB);
+    await sendMessage(env, chatId, formatUsage(lang, report), quiet);
+  } catch (e) {
+    console.error("stats", e);
+    await sendMessage(env, chatId, t(lang, "setCommandsFail"), quiet);
+  }
 }
 
 async function handleSetCommands(
@@ -317,6 +411,14 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
 
   if (command?.cmd === "start") {
     const payload = command.arg.trim();
+    if (!isGroupChat(msg.chat.type)) {
+      await bumpUsage(env.DB, "start").catch((e) => console.error("usage start", e));
+    }
+    const feed = parseFeedStart(payload);
+    if (feed) {
+      await handleFeedStart(env, chatId, msg, settings.lang, feed.symbol);
+      return;
+    }
     const lower = payload.toLowerCase();
     if (lower === "fa" || lower === "en") {
       await setLang(env.DB, String(chatId), lower as Lang);
@@ -353,6 +455,11 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
 
   if (command?.cmd === "every") {
     await handleEvery(env, chatId, msg, command.arg, settings.lang);
+    return;
+  }
+
+  if (command?.cmd === "stats") {
+    await handleStats(env, chatId, msg, settings.lang);
     return;
   }
 
@@ -521,6 +628,7 @@ export async function handleUpdate(env: Env, update: TgUpdate): Promise<void> {
         ? "repeat"
         : "once";
     const id = await addAlert(env.DB, String(chatId), def.id, direction, thr, mode);
+    await bumpUsage(env.DB, "alert").catch((e) => console.error("usage alert", e));
     const modeLabel =
       mode === "repeat"
         ? t(settings.lang, "alertModeRepeat")
@@ -784,6 +892,31 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
         break;
       }
 
+      case "alertAt": {
+        const def = resolveSymbol(parsed.id);
+        if (!def) break;
+        const n = await countAlerts(env.DB, String(chatId));
+        if (n >= 10) {
+          toast = t(settings.lang, "maxAlerts");
+          const rows = await listAlerts(env.DB, String(chatId));
+          await showScreen(env, target, screenAlerts(settings.lang, rows));
+          break;
+        }
+        const row = await getLatest(env.DB, def.id);
+        if (row?.price == null) {
+          toast = t(settings.lang, "needPrice");
+          break;
+        }
+        const { shown, threshold } = crossThreshold(row.price);
+        await savePendingAlert(env, chatId, {
+          symbol: def.id,
+          direction: "above",
+          threshold,
+        });
+        await showScreen(env, target, screenAlertCross(settings.lang, def.id, shown));
+        break;
+      }
+
       case "alertNew": {
         const n = await countAlerts(env.DB, String(chatId));
         if (n >= 10) {
@@ -834,6 +967,7 @@ async function handleCallback(env: Env, cq: TgCallbackQuery): Promise<void> {
           pending.threshold,
           mode,
         );
+        await bumpUsage(env.DB, "alert").catch((e) => console.error("usage alert", e));
         await clearPendingAlert(env, chatId);
         const rows = await listAlerts(env.DB, String(chatId));
         await showScreen(env, target, screenAlerts(settings.lang, rows));

@@ -33,7 +33,7 @@ const apiSteps = [
 const beats = [
   ["تابلو", "نرخ بازار آزاد همین حالا روی تابلو است. خواندنش حساب نمی‌خواهد. واحد تومان است."],
   ["فروشگاه", "افزونه وردپرس، ووکامرس یا WHMCS همان نرخ را در قیمت می‌نویسد. کلید را ربات می‌دهد."],
-  ["هشدار", "با /alert بگو از چه قیمتی خبر بدهد. یک‌بار یا تکراری. کانال یک فهرست سنجاق‌شده است."],
+  ["هشدار", "از ربات بخواه وقتی قیمت از عددی گذشت خبر بدهد. کانال هر ده دقیقه یک فهرست بی‌صدا می‌فرستد."],
 ] as const;
 
 const fields = [
@@ -50,33 +50,31 @@ export default function HomePage() {
     <main>
       <section className="totem-scene relative overflow-hidden">
         <PageWash />
-        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16 lg:py-20">
-          <div>
-            <p className="enter text-sm font-medium text-foreground/70">بازار آزاد · تومان</p>
-            <h1
-              className="enter mt-3 text-balance text-4xl font-semibold leading-[1.35] text-foreground lg:text-5xl"
-              style={riseDelay(80)}
-            >
-              نرخ دلار، داخل <span className="text-brand">قیمت فروشگاه.</span>
-            </h1>
-            <p
-              className="enter mt-4 max-w-[36ch] text-base leading-8 text-foreground/75"
-              style={riseDelay(160)}
-            >
-              افزونه‌های رایگان وردپرس، ووکامرس و WHMCS قیمت فروشگاه را با نرخ بازار آزاد تازه می‌کنند.
-            </p>
-            <div className="enter mt-6 flex flex-wrap gap-3" style={riseDelay(240)}>
-              <ShineButton href="#plugins">انتخاب افزونه</ShineButton>
-              <Link href="/dashboard/" className={quiet}>
-                داشبورد فروشگاه
-              </Link>
-            </div>
-          </div>
-          <div className="enter" style={riseDelay(140)}>
+        <div className="relative z-10 mx-auto max-w-3xl px-4 py-8 lg:py-14">
+          <p className="enter text-center text-sm font-medium text-foreground/70">بازار آزاد · تومان</p>
+          <h1 className="sr-only">نرخ دلار بازار آزاد، به تومان</h1>
+          <div className="enter" style={riseDelay(80)}>
             <HeroStage>
               <Totem />
             </HeroStage>
           </div>
+          <div className="enter flex flex-wrap justify-center gap-3" style={riseDelay(160)}>
+            <ShineButton href={`${BOT_URL}?start=USD`}>ربات</ShineButton>
+            <Link href="/woocommerce/" className={quiet}>
+              افزونه
+            </Link>
+          </div>
+          <p className="enter mt-4 text-center text-foreground/75" style={riseDelay(220)}>
+            قیمت فروشگاه از همین عدد می‌آید.
+          </p>
+          <p className="enter mt-3 flex justify-center gap-5 text-sm font-semibold" style={riseDelay(260)}>
+            <Link href="/board/" className="text-foreground/80">
+              تابلو
+            </Link>
+            <Link href="/dashboard/" className="text-foreground/80">
+              داشبورد فروشگاه
+            </Link>
+          </p>
         </div>
       </section>
 

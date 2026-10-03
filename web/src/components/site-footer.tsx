@@ -4,6 +4,7 @@ import { BOT_URL, CHANNEL_URL } from "@/lib/rates";
 const links = [
   { href: "/dashboard/", label: "داشبورد" },
   { href: "/docs/", label: "راهنما" },
+  { href: "/woocommerce/", label: "ووکامرس" },
   { href: "/board/", label: "تابلو" },
   { href: "/developers/", label: "API" },
   { href: "/privacy/", label: "حریم خصوصی" },

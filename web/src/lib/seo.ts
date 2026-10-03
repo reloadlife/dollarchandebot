@@ -20,12 +20,15 @@ export function pageMeta({
   description,
   path,
   markdown = "/llms.txt",
+  image,
 }: {
   title: string;
   description: string;
   path: string;
   markdown?: string;
+  image?: { url: string; alt: string };
 }): Metadata {
+  const picture = image ?? social;
   return {
     title: { absolute: title },
     description,
@@ -41,13 +44,13 @@ export function pageMeta({
       siteName: SITE_NAME,
       locale: "fa_IR",
       type: "website",
-      images: [social],
+      images: [picture],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [{ url: social.url, alt: social.alt }],
+      images: [{ url: picture.url, alt: picture.alt }],
     },
   };
 }

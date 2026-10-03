@@ -9,6 +9,7 @@ import { buildPriceListHtml } from "./cast/messages";
 import { handleChartRequest } from "./chart/serve";
 import { handleMcp } from "./api/mcp";
 import { handlePublicApi } from "./api/public";
+import { bumpUsage, usageReport, type UsageKind } from "./db/usage";
 
 /** So the bot notices when it is added to a group. Does not drop queued updates. */
 async function ensureGroupUpdates(env: Env): Promise<void> {
@@ -79,6 +80,33 @@ export default {
     // Ops helpers (protect with secret header in prod if exposed)
     if (url.pathname === "/health") {
       return Response.json({ ok: true, service: "dollarchande" });
+    }
+
+    const download = url.pathname.match(/^\/dl\/(woocommerce|wordpress|whmcs)$/);
+    if (download && (request.method === "GET" || request.method === "HEAD")) {
+      const slug = download[1] as "woocommerce" | "wordpress" | "whmcs";
+      if (request.method === "GET") {
+        const kind = `dl_${slug}` as UsageKind;
+        try {
+          await bumpUsage(env.DB, kind);
+        } catch (e) {
+          console.error("usage download", e);
+        }
+      }
+      return Response.redirect(`https://dollarchande.live/downloads/dollarchande-${slug}.zip`, 302);
+    }
+
+    if (url.pathname === "/admin/usage" && request.method === "GET") {
+      const secret = request.headers.get("x-admin-secret");
+      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      try {
+        return Response.json(await usageReport(env.DB));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return Response.json({ ok: false, error: msg }, { status: 500 });
+      }
     }
 
     if (url.pathname === "/admin/setup-webhook" && request.method === "POST") {
@@ -191,6 +219,7 @@ export default {
       [
         "DollarChande Worker",
         "GET  /health",
+        "GET  /dl/woocommerce",
         "GET  /api/v1",
         "GET  /api/latest",
         "GET  /preview/list",

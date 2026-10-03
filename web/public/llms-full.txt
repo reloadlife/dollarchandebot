@@ -26,6 +26,7 @@ Only GET and OPTIONS are accepted. Anything else is 405 `method_not_allowed`.
 CORS allows any origin, methods GET and OPTIONS, headers content-type, accept, authorization, and x-api-key.
 A successful JSON response is cached about 60 seconds. Do not poll faster than that.
 `GET /chart/{ID}.png` does not use this key check.
+A symbol has its own page, such as https://dollarchande.live/usd/ and https://dollarchande.live/gold18/. The page shows the live price and that chart.
 
 Reading the board on the website does not ask for an account. That is not a way to call the API.
 
@@ -80,7 +81,7 @@ Replace KEY. Do not invent a price when the request fails.
 
 All three are free. Each needs the bot key. A plugin without a key gets 401 and does nothing.
 
-WordPress — https://dollarchande.live/downloads/dollarchande-wordpress.zip
+WordPress — https://api.dollarchande.live/dl/wordpress
 
 1. Upload the zip, or copy the `dollarchande` folder into `wp-content/plugins`. Activate it.
 2. Settings → دلارچنده: paste the key from /key.
@@ -88,7 +89,7 @@ WordPress — https://dollarchande.live/downloads/dollarchande-wordpress.zip
 4. In a theme, `dollarchande_rate('USD')` returns the rate, or null if it did not arrive.
 5. If the rate is missing or outside a sane range, the shortcode says «نرخ الان نرسید.» and does not replace the previous number.
 
-WooCommerce — https://dollarchande.live/downloads/dollarchande-woocommerce.zip
+WooCommerce — https://api.dollarchande.live/dl/woocommerce
 
 WooCommerce must already be installed. Price = base × rate × factor, rounded to the step. Factor 1 for toman, 10 for rial. A step of 1000 rounds to the nearest thousand.
 
@@ -98,7 +99,7 @@ WooCommerce must already be installed. Price = base × rate × factor, rounded t
 4. A cron run happens about once an hour. «همگام‌سازی الان» runs it immediately.
 5. If the rate is not sane, the stored price stays as it is.
 
-WHMCS — https://dollarchande.live/downloads/dollarchande-whmcs.zip
+WHMCS — https://api.dollarchande.live/dl/whmcs
 
 1. Put the folder in `modules/addons/dollarchande`.
 2. Configuration → Addon Modules: activate دلارچنده.

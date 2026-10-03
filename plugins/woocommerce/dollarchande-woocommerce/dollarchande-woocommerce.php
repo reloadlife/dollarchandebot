@@ -2,7 +2,7 @@
 /**
  * Plugin Name: دلارچنده برای ووکامرس
  * Plugin URI: https://dollarchande.live/
- * Description: قیمت کالاهای انتخاب‌شده را با نرخ بازار آزاد تازه می‌کند.
+ * Description: قیمت دلار ووکامرس را با نرخ بازار آزاد تازه می‌کند.
  * Version: 1.0.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -312,6 +312,7 @@ function dollarchande_woo_render() {
     ?>
     <div class="wrap">
         <h1>دلارچنده برای ووکامرس</h1>
+        <p>برای خواندن نرخ به آدرس API وصل می‌شود. کلید و نماد فرستاده می‌شود. سفارش و مشتری فرستاده نمی‌شود.</p>
         <?php if ($notice) : ?>
             <div class="notice notice-success"><p><?php echo esc_html($notice); ?></p></div>
         <?php endif; ?>

@@ -4,6 +4,13 @@ export const API_BASE =
 export const BOT_URL = "https://t.me/DollarChandeBot";
 export const CHANNEL_URL = "https://t.me/AlanDollarChande";
 
+/** Counted download. The worker redirects to the zip. */
+export const PLUGIN_ZIP = {
+  woocommerce: `${API_BASE}/dl/woocommerce`,
+  wordpress: `${API_BASE}/dl/wordpress`,
+  whmcs: `${API_BASE}/dl/whmcs`,
+} as const;
+
 export type Kind = "fx" | "gold" | "coin" | "crypto";
 
 export interface Quote {

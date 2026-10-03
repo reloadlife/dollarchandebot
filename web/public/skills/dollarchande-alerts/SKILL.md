@@ -22,4 +22,6 @@ Alerts live in the bot https://t.me/DollarChandeBot. At most ten per chat. They 
 
 Replace USD with a real symbol id: USD, EUR, USDT, GOLD18, EMAMI, AZADI, HALF, and the others in https://dollarchande.live/llms-full.txt. `nim` means HALF.
 
-The channel https://t.me/AlanDollarChande posts a silent price list on each update. It does not notify, and it is not the alert.
+The channel https://t.me/AlanDollarChande posts a silent price list on each update. Its دلار button opens the bot on that price. The next buttons are «وقتی از این قیمت گذشت خبر بده» (one unit above the printed price, then once or every) and «بفرست به گروه» (inline). «هر ساعت در گروه» adds the bot to a group and starts a silent hourly post for that symbol, the same as `/every 1h USD`. The channel itself does not notify, and it is not the alert.
+
+A page such as https://dollarchande.live/usd/ shows the same price and the chart image.

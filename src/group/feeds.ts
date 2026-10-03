@@ -66,6 +66,22 @@ type FeedRow = {
   last_sent_at: number;
 };
 
+/** Deep link from the price screen: /start feed or /start feed_USD. Unknown symbols are not a feed. */
+export function parseFeedStart(payload: string): { symbol: string | null } | null {
+  const m = payload.trim().match(/^feed(?:_([A-Za-z0-9]+))?$/i);
+  if (!m) return null;
+  if (!m[1]) return { symbol: null };
+  const def = resolveSymbol(m[1]);
+  return def ? { symbol: def.id } : null;
+}
+
+export async function hasGroupFeed(env: Env, chatId: string): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT 1 AS ok FROM group_feeds WHERE chat_id = ?`)
+    .bind(chatId)
+    .first<{ ok: number }>();
+  return Boolean(row);
+}
+
 export async function saveGroupFeed(
   env: Env,
   chatId: string,

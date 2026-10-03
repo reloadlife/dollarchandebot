@@ -6,7 +6,9 @@ The site is https://dollarchande.live. The API is https://api.dollarchande.live.
 
 ## Pages
 
-- [خانه](https://dollarchande.live/): نرخ دلار داخل قیمت فروشگاه، افزونه‌ها، و یک نمونه درخواست
+- [خانه](https://dollarchande.live/): نرخ زنده دلار، دکمه‌های ربات و افزونه، تابلو زیر آن
+- [دلار](https://dollarchande.live/usd/): نرخ دلار و نمودار، برای فرستادن. بقیه نمادها هم نشانی دارند، مثل /eur/ و /usdt/ و /gold18/
+- [ووکامرس](https://dollarchande.live/woocommerce/): قیمت دلار ووکامرس، افزونه رایگان
 - [تابلو](https://dollarchande.live/board/): نرخ زنده ارز، طلا و سکه به تومان
 - [داشبورد](https://dollarchande.live/dashboard/): همان تابلو برای فروشگاه، بدون حساب
 - [راهنما](https://dollarchande.live/docs.md): نصب وردپرس، ووکامرس، WHMCS و دستور هشدار. صفحه: https://dollarchande.live/docs/
@@ -32,6 +34,6 @@ The site is https://dollarchande.live. The API is https://api.dollarchande.live.
 - [کاتالوگ مهارت](https://dollarchande.live/.well-known/agent-skills/index.json): نام و آدرس SKILL.md
 - [ربات](https://t.me/DollarChandeBot): گرفتن کلید با /key
 - [کانال](https://t.me/AlanDollarChande): فهرست قیمت، بی‌صدا
-- [وردپرس](https://dollarchande.live/downloads/dollarchande-wordpress.zip): افزونه شورت‌کد
-- [ووکامرس](https://dollarchande.live/downloads/dollarchande-woocommerce.zip): قیمت قفسه از پایه و نرخ
-- [WHMCS](https://dollarchande.live/downloads/dollarchande-whmcs.zip): نرخ یک ارز
+- [وردپرس](https://api.dollarchande.live/dl/wordpress): افزونه شورت‌کد
+- [ووکامرس](https://api.dollarchande.live/dl/woocommerce): قیمت قفسه از پایه و نرخ
+- [WHMCS](https://api.dollarchande.live/dl/whmcs): نرخ یک ارز

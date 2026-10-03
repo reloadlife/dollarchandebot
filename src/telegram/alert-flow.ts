@@ -23,6 +23,12 @@ export function parseAlertAmount(raw: string): number | null {
   return n;
 }
 
+/** Printed price, and the line one unit above it so the alert does not fire on the number already on screen. */
+export function crossThreshold(price: number): { shown: number; threshold: number } {
+  const shown = Math.round(price);
+  return { shown, threshold: shown + 1 };
+}
+
 export function encodePending(p: PendingAlert): string {
   return JSON.stringify(p);
 }

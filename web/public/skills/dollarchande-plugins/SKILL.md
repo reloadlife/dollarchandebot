@@ -11,7 +11,7 @@ Prices are free-market toman, not a buy or sell recommendation. The price on the
 
 ## WordPress
 
-Zip: https://dollarchande.live/downloads/dollarchande-wordpress.zip
+Zip: https://api.dollarchande.live/dl/wordpress
 
 1. Upload the zip, or place the `dollarchande` folder in `wp-content/plugins`. Activate it.
 2. Settings → دلارچنده: paste the key.
@@ -21,7 +21,7 @@ Zip: https://dollarchande.live/downloads/dollarchande-wordpress.zip
 
 ## WooCommerce
 
-Zip: https://dollarchande.live/downloads/dollarchande-woocommerce.zip
+Zip: https://api.dollarchande.live/dl/woocommerce
 
 WooCommerce must already be installed. Shelf price = base × rate × factor, rounded to the step. Factor is 1 for toman and 10 for rial. A step of 1000 rounds to the nearest thousand.
 
@@ -33,7 +33,7 @@ WooCommerce must already be installed. Shelf price = base × rate × factor, rou
 
 ## WHMCS
 
-Zip: https://dollarchande.live/downloads/dollarchande-whmcs.zip
+Zip: https://api.dollarchande.live/dl/whmcs
 
 1. Place the folder at `modules/addons/dollarchande`.
 2. Configuration → Addon Modules: activate دلارچنده.

@@ -192,11 +192,18 @@ export function symbolListKeyboard(
   return { inline_keyboard: rows };
 }
 
+function crossLabel(lang: Lang, price: number): string {
+  const n = formatPrice(price);
+  return lang === "fa" ? `وقتی از ${n} گذشت خبر بده` : `Tell me past ${n}`;
+}
+
 /** Copy is its own full-width button. A fifth in-message button was clipped and untappable. */
 export function symbolCardKeyboard(
   lang: Lang,
+  symbolId: string,
   price: number | null,
-  backKind?: SymbolKind,
+  backKind: SymbolKind | undefined,
+  bot: string,
 ): InlineKeyboard {
   const back = backKind ? `b:${backKind}:0` : "b:c";
   const rows: InlineBtn[][] = [];
@@ -208,7 +215,22 @@ export function symbolCardKeyboard(
         icon_custom_emoji_id: CUSTOM_EMOJI_IDS.price,
       },
     ]);
+    rows.push([btn(crossLabel(lang, price), `a:at:${symbolId}`, "primary", "clock")]);
   }
+  rows.push([
+    {
+      text: t(lang, "uiSendGroup"),
+      switch_inline_query: symbolId,
+      icon_custom_emoji_id: CUSTOM_EMOJI_IDS.channel,
+    },
+  ]);
+  rows.push([
+    {
+      text: t(lang, "uiFeedHour"),
+      url: `https://t.me/${bot}?startgroup=feed_${symbolId}`,
+      icon_custom_emoji_id: CUSTOM_EMOJI_IDS.clock,
+    },
+  ]);
   rows.push([
     btn(t(lang, "uiBack"), back, undefined, "flat"),
     btn(t(lang, "uiSettings"), "set", undefined, "flat"),
@@ -369,7 +391,7 @@ export function screenSymbolCard(
 ): Screen {
   return {
     html: richSymbolPrice(env, def, row, chartUrl, dayRange, price24hAgo, lang, range),
-    keyboard: symbolCardKeyboard(lang, row?.price ?? null, def.kind),
+    keyboard: symbolCardKeyboard(lang, def.id, row?.price ?? null, def.kind, env.BOT_USERNAME),
   };
 }
 
@@ -478,6 +500,31 @@ export function screenAlertAmount(
     keyboard: {
       inline_keyboard: [
         [btn(t(lang, "uiBack"), `a:new:${symbolId}`), btn(t(lang, "uiHome"), "h")],
+      ],
+    },
+  };
+}
+
+/** The price already on the card. Once or every is the only choice left. */
+export function screenAlertCross(lang: Lang, symbolId: string, shown: number): Screen {
+  const n = formatPrice(shown);
+  const html =
+    lang === "fa"
+      ? `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
+<p>وقتی از <b>${escapeHtml(n)}</b> گذشت خبر بده.</p>
+<p>${t(lang, "alertPickMode")}</p>`
+      : `<h2>🔔 ${escapeHtml(symbolLabel(lang, symbolId))}</h2>
+<p>Tell me when it passes <b>${escapeHtml(n)}</b>.</p>
+<p>${t(lang, "alertPickMode")}</p>`;
+  return {
+    html: html.trim(),
+    keyboard: {
+      inline_keyboard: [
+        [
+          btn(t(lang, "alertModeOnce"), "a:arm:once", "primary"),
+          btn(t(lang, "alertModeRepeat"), "a:arm:every"),
+        ],
+        [btn(t(lang, "uiBack"), `s:${symbolId}`), btn(t(lang, "uiHome"), "h")],
       ],
     },
   };
@@ -643,6 +690,7 @@ export type ParsedCallback =
   | { type: "alerts" }
   | { type: "alertDelete"; id: number }
   | { type: "alertNew"; id: string }
+  | { type: "alertAt"; id: string }
   | { type: "alertDir"; id: string; direction: "above" | "below" | "move" }
   | { type: "alertArm"; mode: "once" | "every" }
   | { type: "alertHelp" }
@@ -663,7 +711,10 @@ export function parseCallback(raw: string): ParsedCallback {
   if (data === "a") return { type: "alerts" };
   if (data === "a:help") return { type: "alertHelp" };
 
-  let m = data.match(/^a:new:([A-Z0-9]+)$/i);
+  let m = data.match(/^a:at:([A-Z0-9]+)$/i);
+  if (m) return { type: "alertAt", id: (m[1] ?? "").toUpperCase() };
+
+  m = data.match(/^a:new:([A-Z0-9]+)$/i);
   if (m) return { type: "alertNew", id: (m[1] ?? "").toUpperCase() };
 
   m = data.match(/^a:dir:([A-Z0-9]+):(above|below|move)$/i);
